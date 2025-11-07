@@ -1,15 +1,14 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
+import { getFirestore } from 'firebase-admin/firestore';
 import { calculateSupplyInfo, PrescriptionData } from './utils/supplyCalculator';
 import { generateReorderEmailHTML, generateCombinedReorderEmailHTML } from './utils/emailService';
 import { normalizeDate, dateDiffInDays } from './utils/dateUtils';
 
-admin.initializeApp();
+admin.initializeApp()
 
-// Access the default Firestore database
-// The 'prescriptions' named database is accessed via the client SDK
-// For Cloud Functions, we use the default database
-const db = admin.firestore();
+// Access the prescriptions database
+const db = getFirestore("prescriptions")
 
 /**
  * Scheduled function that runs daily at 9 AM to check for prescriptions that need reordering

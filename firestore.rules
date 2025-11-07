@@ -28,10 +28,19 @@ service cloud.firestore {
         && request.resource.data.createdAt is timestamp;
       
       // Allow update if user is authenticated and owns the prescription
-      // Only allow updating the supplyLog field
+      // Allow updating the supplyLog and photoUrls fields
       allow update: if isOwner(userId)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['supplyLog'])
-        && request.resource.data.supplyLog is list;
+        && (
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['supplyLog'])
+            && request.resource.data.supplyLog is list)
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['photoUrls'])
+            && request.resource.data.photoUrls is list
+            && request.resource.data.photoUrls.size() <= 5)
+          || (request.resource.data.diff(resource.data).affectedKeys().hasAll(['supplyLog', 'photoUrls'])
+            && request.resource.data.supplyLog is list
+            && request.resource.data.photoUrls is list
+            && request.resource.data.photoUrls.size() <= 5)
+        );
       
       // Allow delete if user is authenticated and owns the prescription
       allow delete: if isOwner(userId);

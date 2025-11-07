@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { Prescription, SupplyInfo } from '../types';
 import { formatDisplayDate, dateDiffInDays, normalizeDate } from '../utils/dateUtils';
+import { PhotoGalleryModal } from './PhotoGalleryModal';
 
 interface PrescriptionCardProps {
   prescription: Prescription;
@@ -16,8 +18,10 @@ export function PrescriptionCard({
   onViewLogs,
   onDelete,
 }: PrescriptionCardProps) {
+  const [isPhotoGalleryOpen, setIsPhotoGalleryOpen] = useState(false);
   const today = normalizeDate(new Date());
   const reorderDiff = dateDiffInDays(supplyInfo.reorderDate, today);
+  const hasPhotos = prescription.photoUrls && prescription.photoUrls.length > 0;
 
   // Determine re-order date color and label
   let reorderColor = 'text-gray-700';
@@ -38,31 +42,57 @@ export function PrescriptionCard({
   }
 
   const handleDelete = () => {
-    if (window.confirm(`Are you sure you want to delete ${prescription.name}? This cannot be undone.`)) {
-      onDelete(prescription);
-    }
+    onDelete(prescription);
   };
 
   return (
-    <div className="bg-white shadow-lg rounded-xl p-6 border border-gray-200 transition-shadow hover:shadow-xl">
-      <div className="flex flex-col md:flex-row justify-between md:items-center mb-4">
-        <h3 className="text-3xl font-bold text-gray-900">{prescription.name}</h3>
-        <span className="text-lg font-semibold text-blue-700 mt-2 md:mt-0">
-          ~{Math.round(supplyInfo.currentSupply)} tablets left
-        </span>
-      </div>
+    <>
+      <div className="bg-white dark:bg-gray-800 shadow-lg rounded-xl p-6 border border-gray-200 dark:border-gray-700 transition-shadow hover:shadow-xl">
+        <div className="flex flex-col md:flex-row justify-between md:items-center mb-4">
+          <div className="flex items-center gap-3">
+            <h3 className="text-3xl font-bold text-gray-900 dark:text-white">{prescription.name}</h3>
+            {hasPhotos && (
+              <button
+                onClick={() => setIsPhotoGalleryOpen(true)}
+                className="flex items-center gap-1 px-2 py-1 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
+                aria-label="View photos"
+                title={`View ${prescription.photoUrls?.length || 0} photo(s)`}
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+                <span className="text-xs font-medium">
+                  {prescription.photoUrls?.length || 0}
+                </span>
+              </button>
+            )}
+          </div>
+          <span className="text-lg font-semibold text-blue-700 dark:text-blue-400 mt-2 md:mt-0">
+            ~{Math.round(supplyInfo.currentSupply)} tablets left
+          </span>
+        </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-          <p className="text-sm font-medium text-gray-500">Re-order Date</p>
+        <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Re-order Date</p>
           <p className={`text-xl ${reorderColor}`}>
             {formatDisplayDate(supplyInfo.reorderDate)}{' '}
             <span className={`text-sm ${reorderColor}`}>{reorderLabel}</span>
           </p>
         </div>
-        <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-          <p className="text-sm font-medium text-gray-500">Est. Run Out Date</p>
-          <p className="text-xl text-gray-700">
+        <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Est. Run Out Date</p>
+          <p className="text-xl text-gray-700 dark:text-gray-300">
             {formatDisplayDate(supplyInfo.runOutDate)} ({supplyInfo.daysRemaining} days left)
           </p>
         </div>
@@ -88,7 +118,17 @@ export function PrescriptionCard({
           Delete
         </button>
       </div>
-    </div>
+      </div>
+
+      {hasPhotos && (
+        <PhotoGalleryModal
+          isOpen={isPhotoGalleryOpen}
+          onClose={() => setIsPhotoGalleryOpen(false)}
+          photoUrls={prescription.photoUrls || []}
+          prescriptionName={prescription.name}
+        />
+      )}
+    </>
   );
 }
 

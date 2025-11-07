@@ -1,6 +1,7 @@
 import { initializeApp, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
+import { getStorage, FirebaseStorage } from 'firebase/storage';
 
 // Firebase configuration - these should be set via environment variables
 // For now, we'll use a placeholder that needs to be configured
@@ -16,10 +17,11 @@ const firebaseConfig = {
 let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
 let db: Firestore | null = null;
+let storage: FirebaseStorage | null = null;
 
-export function initializeFirebase(): { app: FirebaseApp; auth: Auth; db: Firestore } {
-  if (app && auth && db) {
-    return { app, auth, db };
+export function initializeFirebase(): { app: FirebaseApp; auth: Auth; db: Firestore; storage: FirebaseStorage } {
+  if (app && auth && db && storage) {
+    return { app, auth, db, storage };
   }
 
   if (!firebaseConfig.apiKey) {
@@ -30,13 +32,14 @@ export function initializeFirebase(): { app: FirebaseApp; auth: Auth; db: Firest
   auth = getAuth(app);
   // Use the 'prescriptions' named database
   db = getFirestore(app, 'prescriptions');
+  storage = getStorage(app);
 
   // Set persistence to browserLocalPersistence to preserve auth across page refreshes
   setPersistence(auth, browserLocalPersistence).catch((error) => {
     console.error('Error setting auth persistence:', error);
   });
 
-  return { app, auth, db };
+  return { app, auth, db, storage };
 }
 
 export function getFirebaseAuth(): Auth {
@@ -51,5 +54,12 @@ export function getFirebaseDb(): Firestore {
     throw new Error('Firebase not initialized. Call initializeFirebase() first.');
   }
   return db;
+}
+
+export function getFirebaseStorage(): FirebaseStorage {
+  if (!storage) {
+    throw new Error('Firebase not initialized. Call initializeFirebase() first.');
+  }
+  return storage;
 }
 

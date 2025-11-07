@@ -13,6 +13,7 @@ export interface Prescription {
   startDate: Timestamp;
   startSupply: number;
   supplyLog: SupplyLogEntry[];
+  photoUrls?: string[]; // Array of Firebase Storage URLs for medication photos
   createdAt: Timestamp;
 }
 

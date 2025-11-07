@@ -73,6 +73,19 @@ export async function logDelivery(
 }
 
 /**
+ * Update prescription photos
+ */
+export async function updatePrescriptionPhotos(
+  userId: string,
+  prescriptionId: string,
+  photoUrls: string[]
+): Promise<void> {
+  const db = getFirebaseDb();
+  const docRef = doc(db, 'users', userId, COLLECTION_NAME, prescriptionId);
+  await updateDoc(docRef, { photoUrls });
+}
+
+/**
  * Delete a prescription
  */
 export async function deletePrescription(userId: string, prescriptionId: string): Promise<void> {

@@ -1,8 +1,10 @@
 import { useState, FormEvent } from 'react';
 import { Timestamp } from 'firebase/firestore';
 import { addPrescription } from '../services/prescriptionService';
+import { uploadPrescriptionPhoto } from '../services/storageService';
 import { formatDateYYYYMMDD } from '../utils/dateUtils';
 import { Prescription } from '../types';
+import { PhotoUpload } from './PhotoUpload';
 
 interface AddPrescriptionFormProps {
   userId: string;
@@ -23,6 +25,8 @@ export function AddPrescriptionForm({
   const [startDate, setStartDate] = useState(formatDateYYYYMMDD(new Date()));
   const [startSupply, setStartSupply] = useState('0');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedPhotos, setSelectedPhotos] = useState<File[]>([]);
+  const [photoUploadResetKey, setPhotoUploadResetKey] = useState(0);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -53,15 +57,44 @@ export function AddPrescriptionForm({
     setIsSubmitting(true);
 
     try {
-      const prescriptionData: Omit<Prescription, 'id' | 'createdAt' | 'supplyLog'> = {
-        name,
-        packSize: packSizeNum,
-        dailyDose: dailyDoseNum,
-        startDate: Timestamp.fromDate(startDateObj),
-        startSupply: startSupplyNum,
-      };
+      // Upload photos first
+      let photoUrls: string[] = [];
+      if (selectedPhotos.length > 0) {
+        // We need to create the prescription first to get its ID, then upload photos
+        // So we'll create it without photos, then update it with photo URLs
+        const prescriptionData: Omit<Prescription, 'id' | 'createdAt' | 'supplyLog'> = {
+          name,
+          packSize: packSizeNum,
+          dailyDose: dailyDoseNum,
+          startDate: Timestamp.fromDate(startDateObj),
+          startSupply: startSupplyNum,
+        };
 
-      await addPrescription(userId, prescriptionData);
+        const prescriptionId = await addPrescription(userId, prescriptionData);
+
+        // Upload photos
+        const uploadPromises = selectedPhotos.map((file) =>
+          uploadPrescriptionPhoto(userId, prescriptionId, file)
+        );
+        photoUrls = await Promise.all(uploadPromises);
+
+        // Update prescription with photo URLs
+        const { updateDoc, doc } = await import('firebase/firestore');
+        const { getFirebaseDb } = await import('../firebase/config');
+        const db = getFirebaseDb();
+        const prescriptionRef = doc(db, 'users', userId, 'prescriptions', prescriptionId);
+        await updateDoc(prescriptionRef, { photoUrls });
+      } else {
+        // No photos, just create the prescription
+        await addPrescription(userId, {
+          name,
+          packSize: packSizeNum,
+          dailyDose: dailyDoseNum,
+          startDate: Timestamp.fromDate(startDateObj),
+          startSupply: startSupplyNum,
+        });
+      }
+
       onSuccess(`${name} added successfully!`);
 
       // Reset form
@@ -70,6 +103,8 @@ export function AddPrescriptionForm({
       setDailyDose('1');
       setStartDate(formatDateYYYYMMDD(new Date()));
       setStartSupply('0');
+      setSelectedPhotos([]);
+      setPhotoUploadResetKey((prev) => prev + 1); // Force PhotoUpload to reset
       onPrescriptionAdded();
     } catch (error) {
       console.error('Error adding prescription:', error);
@@ -80,11 +115,11 @@ export function AddPrescriptionForm({
   };
 
   return (
-    <div className="bg-white p-6 md:p-8 rounded-2xl shadow-lg mb-8 border border-gray-200">
-      <h2 className="text-2xl font-semibold text-gray-900 mb-6">Add New Prescription</h2>
+    <div className="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-2xl shadow-lg mb-8 border border-gray-200 dark:border-gray-700">
+      <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">Add New Prescription</h2>
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Medication Name
           </label>
           <input
@@ -93,13 +128,13 @@ export function AddPrescriptionForm({
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
-            className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
             placeholder="e.g., Atorvastatin"
           />
         </div>
 
         <div>
-          <label htmlFor="pack-size" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="pack-size" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Standard Pack Size
           </label>
           <input
@@ -109,13 +144,13 @@ export function AddPrescriptionForm({
             value={packSize}
             onChange={(e) => setPackSize(e.target.value)}
             required
-            className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
             placeholder="e.g., 30"
           />
         </div>
 
         <div>
-          <label htmlFor="daily-dose" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="daily-dose" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Daily Dose (Tablets)
           </label>
           <input
@@ -126,13 +161,13 @@ export function AddPrescriptionForm({
             value={dailyDose}
             onChange={(e) => setDailyDose(e.target.value)}
             required
-            className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
             placeholder="e.g., 1 or 0.5"
           />
         </div>
 
         <div>
-          <label htmlFor="start-date" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="start-date" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Tracking Start Date
           </label>
           <input
@@ -141,12 +176,12 @@ export function AddPrescriptionForm({
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
             required
-            className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
           />
         </div>
 
         <div>
-          <label htmlFor="start-supply" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="start-supply" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Supply on Start Date
           </label>
           <input
@@ -156,8 +191,17 @@ export function AddPrescriptionForm({
             value={startSupply}
             onChange={(e) => setStartSupply(e.target.value)}
             required
-            className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
             placeholder="How many tablets you have now"
+          />
+        </div>
+
+        <div className="md:col-span-2">
+          <PhotoUpload
+            onPhotosChange={setSelectedPhotos}
+            maxPhotos={5}
+            existingPhotos={0}
+            resetKey={photoUploadResetKey}
           />
         </div>
 
