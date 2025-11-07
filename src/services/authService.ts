@@ -1,6 +1,8 @@
 import {
   signInWithPopup,
   GoogleAuthProvider,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
   signInWithCustomToken,
   onAuthStateChanged,
   User,
@@ -15,6 +17,24 @@ export async function signInWithGoogle(): Promise<User> {
   const auth = getFirebaseAuth();
   const provider = new GoogleAuthProvider();
   const userCredential = await signInWithPopup(auth, provider);
+  return userCredential.user;
+}
+
+/**
+ * Sign in with email and password
+ */
+export async function signInWithEmail(email: string, password: string): Promise<User> {
+  const auth = getFirebaseAuth();
+  const userCredential = await signInWithEmailAndPassword(auth, email, password);
+  return userCredential.user;
+}
+
+/**
+ * Create account with email and password
+ */
+export async function createAccountWithEmail(email: string, password: string): Promise<User> {
+  const auth = getFirebaseAuth();
+  const userCredential = await createUserWithEmailAndPassword(auth, email, password);
   return userCredential.user;
 }
 
