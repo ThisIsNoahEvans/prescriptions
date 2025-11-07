@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { User, MultiFactorInfo } from 'firebase/auth';
 import { TotpSecret } from 'firebase/auth';
 import {
@@ -10,14 +10,17 @@ import {
   sendVerificationEmail,
 } from '../services/authService';
 import { ReauthenticateModal } from './ReauthenticateModal';
+import { lockBodyScroll, unlockBodyScroll } from '../utils/scrollLock';
 
 interface MFASettingsProps {
   user: User;
+  isOpen: boolean;
+  onClose: () => void;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
 }
 
-export function MFASettings({ user, onError, onSuccess }: MFASettingsProps) {
+export function MFASettings({ user, isOpen, onClose, onError, onSuccess }: MFASettingsProps) {
   const [mfaEnabled, setMfaEnabled] = useState(false);
   const [factors, setFactors] = useState<MultiFactorInfo[]>([]);
   const [isEnrolling, setIsEnrolling] = useState(false);
@@ -28,6 +31,9 @@ export function MFASettings({ user, onError, onSuccess }: MFASettingsProps) {
   const [showReauthModal, setShowReauthModal] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => Promise<void>) | null>(null);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
+  const [isVisible, setIsVisible] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const scrollLockedRef = useRef(false);
 
   const updateMFAStatus = useCallback(() => {
     const enabled = hasMFA(user);
@@ -40,6 +46,61 @@ export function MFASettings({ user, onError, onSuccess }: MFASettingsProps) {
   useEffect(() => {
     updateMFAStatus();
   }, [updateMFAStatus]);
+
+  // Modal animation and body scroll lock
+  useEffect(() => {
+    if (isOpen) {
+      setIsClosing(false);
+      setIsVisible(false);
+      // Lock body scroll with scrollbar compensation
+      if (!scrollLockedRef.current) {
+        lockBodyScroll();
+        scrollLockedRef.current = true;
+      }
+      // Trigger animation after mount
+      requestAnimationFrame(() => {
+        setIsVisible(true);
+      });
+    } else {
+      setIsVisible(false);
+      // Ensure body scroll is restored when modal closes
+      if (scrollLockedRef.current) {
+        unlockBodyScroll();
+        scrollLockedRef.current = false;
+      }
+    }
+
+    return () => {
+      // Always restore body scroll on unmount or when isOpen changes
+      if (scrollLockedRef.current) {
+        unlockBodyScroll();
+        scrollLockedRef.current = false;
+      }
+    };
+  }, [isOpen]);
+
+  const handleClose = () => {
+    setIsClosing(true);
+    setIsVisible(false);
+    // Restore body scroll immediately when closing starts
+    if (scrollLockedRef.current) {
+      unlockBodyScroll();
+      scrollLockedRef.current = false;
+    }
+    setTimeout(() => {
+      // Ensure scroll is restored before calling onClose
+      if (scrollLockedRef.current) {
+        unlockBodyScroll();
+        scrollLockedRef.current = false;
+      }
+      onClose();
+    }, 300);
+  };
+
+  // Don't render if not open and not closing (allows closing animation to complete)
+  if (!isOpen && !isClosing) {
+    return null;
+  }
 
   const handleStartEnrollment = async () => {
     // Check if email is verified first
@@ -204,10 +265,40 @@ export function MFASettings({ user, onError, onSuccess }: MFASettingsProps) {
 
   if (isEnrolling && totpSecret) {
     return (
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
-        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-          Enable Two-Factor Authentication
-        </h3>
+      <div
+        className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-60 transition-opacity duration-300 ${
+          isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        }`}
+      >
+        <div
+          className={`bg-white dark:bg-gray-800 w-full max-w-lg p-6 rounded-xl shadow-2xl transition-transform duration-300 ease-out max-h-[90vh] overflow-y-auto ${
+            isVisible ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'
+          }`}
+        >
+          <div className="flex justify-between items-start mb-4">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+              Enable Two-Factor Authentication
+            </h3>
+            <button
+              onClick={handleClose}
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              aria-label="Close"
+            >
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
         
         <div className="mb-6">
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
@@ -279,15 +370,52 @@ export function MFASettings({ user, onError, onSuccess }: MFASettingsProps) {
             </button>
           </div>
         </form>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
-      <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-        Two-Factor Authentication (2FA)
-      </h3>
+    <div
+      className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-60 transition-opacity duration-300 ${
+        isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
+      }`}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && isVisible) {
+          handleClose();
+        }
+      }}
+    >
+      <div
+        className={`bg-white dark:bg-gray-800 w-full max-w-2xl p-6 rounded-xl shadow-2xl transition-transform duration-300 ease-out max-h-[90vh] overflow-y-auto ${
+          isVisible ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'
+        }`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex justify-between items-start mb-4">
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+            Two-Factor Authentication (2FA)
+          </h3>
+          <button
+            onClick={handleClose}
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+            aria-label="Close"
+          >
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
 
       {mfaEnabled ? (
         <div>
@@ -363,16 +491,17 @@ export function MFASettings({ user, onError, onSuccess }: MFASettingsProps) {
         </div>
       )}
 
-      <ReauthenticateModal
-        user={user}
-        isOpen={showReauthModal}
-        onClose={() => {
-          setShowReauthModal(false);
-          setPendingAction(null);
-        }}
-        onSuccess={handleReauthSuccess}
-        onError={onError}
-      />
+        <ReauthenticateModal
+          user={user}
+          isOpen={showReauthModal}
+          onClose={() => {
+            setShowReauthModal(false);
+            setPendingAction(null);
+          }}
+          onSuccess={handleReauthSuccess}
+          onError={onError}
+        />
+      </div>
     </div>
   );
 }

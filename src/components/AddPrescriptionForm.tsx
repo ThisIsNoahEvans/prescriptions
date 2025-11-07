@@ -5,6 +5,7 @@ import { uploadPrescriptionPhoto } from '../services/storageService';
 import { formatDateYYYYMMDD } from '../utils/dateUtils';
 import { Prescription } from '../types';
 import { PhotoUpload } from './PhotoUpload';
+import { lockBodyScroll, unlockBodyScroll } from '../utils/scrollLock';
 
 interface AddPrescriptionFormProps {
   userId: string;
@@ -34,8 +35,8 @@ export function AddPrescriptionForm({
 
   // Lock body scroll when form is open
   useEffect(() => {
-    // Prevent body scroll
-    document.body.style.overflow = 'hidden';
+    // Lock body scroll with scrollbar compensation
+    lockBodyScroll();
     
     // Trigger animation after mount
     requestAnimationFrame(() => {
@@ -44,13 +45,15 @@ export function AddPrescriptionForm({
 
     return () => {
       // Restore body scroll on unmount
-      document.body.style.overflow = '';
+      unlockBodyScroll();
     };
   }, []);
 
   const handleClose = () => {
     setIsClosing(true);
     setIsVisible(false);
+    // Restore body scroll immediately when closing starts
+    unlockBodyScroll();
     // Wait for animation to complete before closing
     setTimeout(() => {
       onClose();
@@ -148,7 +151,7 @@ export function AddPrescriptionForm({
   return (
     <div 
       className={`fixed inset-0 z-50 bg-gray-100 dark:bg-gray-900 overflow-y-auto transition-opacity duration-300 ${
-        isVisible ? 'opacity-100' : 'opacity-0'
+        isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
       }`}
     >
       <div 

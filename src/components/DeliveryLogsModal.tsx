@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react';
 import { Prescription } from '../types';
 import { formatDisplayDate } from '../utils/dateUtils';
+import { lockBodyScroll, unlockBodyScroll } from '../utils/scrollLock';
 
 interface DeliveryLogsModalProps {
   prescription: Prescription | null;
@@ -12,15 +14,54 @@ export function DeliveryLogsModal({
   isOpen,
   onClose,
 }: DeliveryLogsModalProps) {
-  if (!isOpen || !prescription) {
+  const [isVisible, setIsVisible] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && prescription) {
+      setIsClosing(false);
+      setIsVisible(false);
+      // Lock body scroll with scrollbar compensation
+      lockBodyScroll();
+      // Trigger animation after mount
+      requestAnimationFrame(() => {
+        setIsVisible(true);
+      });
+    } else {
+      setIsVisible(false);
+      unlockBodyScroll();
+    }
+
+    return () => {
+      unlockBodyScroll();
+    };
+  }, [isOpen, prescription]);
+
+  const handleClose = () => {
+    setIsClosing(true);
+    setIsVisible(false);
+    // Restore body scroll immediately when closing starts
+    unlockBodyScroll();
+    setTimeout(() => {
+      onClose();
+    }, 300);
+  };
+
+  // Don't render if not open and not closing (allows closing animation to complete)
+  if ((!isOpen || !prescription) && !isClosing) {
     return null;
   }
 
   const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) {
-      onClose();
+      handleClose();
     }
   };
+
+  // Don't render content if prescription is null during closing animation
+  if (!prescription) {
+    return null;
+  }
 
   // Sort logs by date (newest first)
   const sortedLogs = [...prescription.supplyLog].sort((a, b) => {
@@ -31,14 +72,14 @@ export function DeliveryLogsModal({
 
   return (
     <div
-      className={`modal fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-60 transition-opacity duration-250 ${
-        isOpen ? 'visible opacity-100' : 'invisible opacity-0'
+      className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-60 transition-opacity duration-300 ${
+        isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
       }`}
       onClick={handleBackdropClick}
     >
       <div
-        className={`modal-content bg-white dark:bg-gray-800 w-full max-w-2xl p-8 rounded-2xl shadow-2xl transition-transform duration-250 max-h-[90vh] overflow-y-auto ${
-          isOpen ? 'scale-100' : 'scale-95'
+        className={`bg-white dark:bg-gray-800 w-full max-w-2xl p-8 rounded-2xl shadow-2xl transition-transform duration-300 ease-out max-h-[90vh] overflow-y-auto ${
+          isVisible ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'
         }`}
         onClick={(e) => e.stopPropagation()}
       >
@@ -50,7 +91,7 @@ export function DeliveryLogsModal({
             <p className="text-lg text-gray-700 dark:text-gray-300">{prescription.name}</p>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
             aria-label="Close"
           >
@@ -156,7 +197,7 @@ export function DeliveryLogsModal({
 
         <div className="mt-6 flex justify-end">
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-bold py-2 px-6 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-all duration-200"
           >
             Close

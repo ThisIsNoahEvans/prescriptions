@@ -11,6 +11,8 @@ import { SignInForm } from './components/SignInForm';
 import { MFASettings } from './components/MFASettings';
 import { LogDeliveryModal } from './components/LogDeliveryModal';
 import { DeliveryLogsModal } from './components/DeliveryLogsModal';
+import { DeleteConfirmationModal } from './components/DeleteConfirmationModal';
+import { SignOutConfirmationModal } from './components/SignOutConfirmationModal';
 import { Toast } from './components/Toast';
 
 function App() {
@@ -22,6 +24,9 @@ function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedPrescriptionForLogs, setSelectedPrescriptionForLogs] = useState<Prescription | null>(null);
   const [isLogsModalOpen, setIsLogsModalOpen] = useState(false);
+  const [selectedPrescriptionForDelete, setSelectedPrescriptionForDelete] = useState<Prescription | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isSignOutModalOpen, setIsSignOutModalOpen] = useState(false);
   const [showMFASettings, setShowMFASettings] = useState(false);
   const [showAddPrescriptionForm, setShowAddPrescriptionForm] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -96,7 +101,12 @@ function App() {
     await logDelivery(user.uid, prescriptionId, deliveryDate, quantity);
   };
 
-  const handleDeletePrescription = async (prescription: Prescription) => {
+  const handleDeletePrescription = (prescription: Prescription) => {
+    setSelectedPrescriptionForDelete(prescription);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async (prescription: Prescription) => {
     if (!user) {
       showToast('You must be signed in.', true);
       return;
@@ -105,20 +115,29 @@ function App() {
     try {
       await deletePrescription(user.uid, prescription.id);
       showToast(`${prescription.name} deleted successfully.`);
+      setIsDeleteModalOpen(false);
+      setSelectedPrescriptionForDelete(null);
     } catch (error) {
       console.error('Error deleting prescription:', error);
       showToast(`Error deleting ${prescription.name}. Please try again.`, true);
+      throw error; // Re-throw so modal can handle it
     }
   };
 
 
-  const handleSignOut = async () => {
+  const handleSignOut = () => {
+    setIsSignOutModalOpen(true);
+  };
+
+  const handleConfirmSignOut = async () => {
     try {
       await signOutAuth();
       showToast('Signed out successfully.');
+      setIsSignOutModalOpen(false);
     } catch (error) {
       console.error('Error signing out:', error);
       showToast('Error signing out. Please try again.', true);
+      throw error; // Re-throw so modal can handle it
     }
   };
 
@@ -176,15 +195,6 @@ function App() {
           />
         ) : (
           <>
-            {showMFASettings && (
-              <div className="mb-8">
-                <MFASettings
-                  user={user}
-                  onError={(message) => showToast(message, true)}
-                  onSuccess={(message) => showToast(message)}
-                />
-              </div>
-            )}
 
             <div className="mb-6 sm:mb-8">
               <button
@@ -269,6 +279,38 @@ function App() {
             setSelectedPrescriptionForLogs(null);
           }}
         />
+
+        <DeleteConfirmationModal
+          prescription={selectedPrescriptionForDelete}
+          isOpen={isDeleteModalOpen}
+          onClose={() => {
+            setIsDeleteModalOpen(false);
+            setSelectedPrescriptionForDelete(null);
+          }}
+          onConfirm={handleConfirmDelete}
+          onError={(message) => showToast(message, true)}
+        />
+
+        <SignOutConfirmationModal
+          isOpen={isSignOutModalOpen}
+          onClose={() => {
+            setIsSignOutModalOpen(false);
+          }}
+          onConfirm={handleConfirmSignOut}
+          onError={(message) => showToast(message, true)}
+        />
+
+        {user && (
+          <MFASettings
+            user={user}
+            isOpen={showMFASettings}
+            onClose={() => {
+              setShowMFASettings(false);
+            }}
+            onError={(message) => showToast(message, true)}
+            onSuccess={(message) => showToast(message)}
+          />
+        )}
 
         <Toast
           message={toastMessage}
