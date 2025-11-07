@@ -8,7 +8,7 @@ import { AddPrescriptionForm } from './components/AddPrescriptionForm';
 import { PrescriptionList } from './components/PrescriptionList';
 import { CalendarView } from './components/CalendarView';
 import { SignInForm } from './components/SignInForm';
-import { MFASettings } from './components/MFASettings';
+import { AccountSettings } from './components/AccountSettings';
 import { LogDeliveryModal } from './components/LogDeliveryModal';
 import { DeliveryLogsModal } from './components/DeliveryLogsModal';
 import { DeleteConfirmationModal } from './components/DeleteConfirmationModal';
@@ -30,7 +30,7 @@ function App() {
   const [selectedPrescriptionForDelete, setSelectedPrescriptionForDelete] = useState<Prescription | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isSignOutModalOpen, setIsSignOutModalOpen] = useState(false);
-  const [showMFASettings, setShowMFASettings] = useState(false);
+  const [showAccountSettings, setShowAccountSettings] = useState(false);
   const [showCategoryManager, setShowCategoryManager] = useState(false);
   const [showAddPrescriptionForm, setShowAddPrescriptionForm] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -149,14 +149,17 @@ function App() {
     setShowLoadingScreen(false);
   };
 
+  // Combined loading state: wait for both auth and prescriptions to load
+  const isFullyLoading = isLoading || (user !== null && isLoadingPrescriptions);
+
   return (
     <>
       {showLoadingScreen && (
-        <LoadingScreen isLoading={isLoading} onLoaded={handleLoadingComplete} />
+        <LoadingScreen isLoading={isFullyLoading} onLoaded={handleLoadingComplete} />
       )}
       <div
-        className={`min-h-screen bg-gray-100 dark:bg-gray-900 transition-opacity duration-500 ${
-          showLoadingScreen ? 'opacity-0' : 'opacity-100'
+        className={`min-h-screen bg-gray-100 dark:bg-gray-900 transition-all duration-500 ${
+          showLoadingScreen ? 'opacity-0 scale-[1.15]' : 'opacity-100 scale-100'
         }`}
       >
       <div className="container mx-auto p-4 sm:p-6 md:p-8 max-w-4xl">
@@ -183,10 +186,10 @@ function App() {
                     Categories
                   </button>
                   <button
-                    onClick={() => setShowMFASettings(true)}
+                    onClick={() => setShowAccountSettings(true)}
                     className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 underline"
                   >
-                    MFA Settings
+                    Account
                   </button>
                   <button
                     onClick={handleSignOut}
@@ -324,14 +327,18 @@ function App() {
               onError={(message) => showToast(message, true)}
               onSuccess={(message) => showToast(message)}
             />
-            <MFASettings
+            <AccountSettings
               user={user}
-              isOpen={showMFASettings}
+              isOpen={showAccountSettings}
               onClose={() => {
-                setShowMFASettings(false);
+                setShowAccountSettings(false);
               }}
               onError={(message) => showToast(message, true)}
               onSuccess={(message) => showToast(message)}
+              onAccountDeleted={() => {
+                setUser(null);
+                setShowAccountSettings(false);
+              }}
             />
           </>
         )}
