@@ -20,11 +20,13 @@ export function DeleteConfirmationModal({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
+  const [prescriptionName, setPrescriptionName] = useState<string>('');
 
   useEffect(() => {
     if (isOpen && prescription) {
       setIsClosing(false);
       setIsVisible(false);
+      setPrescriptionName(prescription.name); // Store the name so it persists during closing animation
       // Lock body scroll with scrollbar compensation
       lockBodyScroll();
       // Trigger animation after mount
@@ -57,7 +59,13 @@ export function DeleteConfirmationModal({
     return null;
   }
 
+  // Don't render content if prescription is null during closing animation
+  if (!prescription && !prescriptionName) {
+    return null;
+  }
+
   const handleConfirm = async () => {
+    if (!prescription) return;
     setIsDeleting(true);
     try {
       await onConfirm(prescription);
@@ -75,6 +83,9 @@ export function DeleteConfirmationModal({
     }
   };
 
+  // Use stored name if prescription is null (during closing animation)
+  const displayName = prescription?.name || prescriptionName;
+
   return (
     <div
       className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-60 transition-opacity duration-300 ${
@@ -90,7 +101,7 @@ export function DeleteConfirmationModal({
       >
         <h2 className="text-2xl font-semibold mb-2 text-red-600 dark:text-red-400">Delete Prescription</h2>
         <p className="text-lg mb-6 text-gray-700 dark:text-gray-300">
-          Are you sure you want to delete <strong>{prescription.name}</strong>?
+          Are you sure you want to delete <strong>{displayName}</strong>?
         </p>
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">
           This action cannot be undone. All prescription data will be permanently deleted.
