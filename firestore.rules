@@ -28,10 +28,11 @@ service cloud.firestore {
         && request.resource.data.createdAt is timestamp
         && request.resource.data.photoUrls is list
         && request.resource.data.photoUrls.size() <= 5
-        && (!('categoryId' in request.resource.data) || request.resource.data.categoryId is string);
+        && (!('categoryId' in request.resource.data) || request.resource.data.categoryId is string)
+        && (!('notes' in request.resource.data) || request.resource.data.notes is string);
       
       // Allow update if user is authenticated and owns the prescription
-      // Allow updating the supplyLog, photoUrls, and categoryId fields
+      // Allow updating the supplyLog, photoUrls, categoryId, and notes fields
       allow update: if isOwner(userId)
         && (
           (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['supplyLog'])
@@ -45,6 +46,8 @@ service cloud.firestore {
             && request.resource.data.photoUrls.size() <= 5)
           || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['categoryId'])
             && (!('categoryId' in request.resource.data) || request.resource.data.categoryId is string))
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['notes'])
+            && (!('notes' in request.resource.data) || request.resource.data.notes is string))
         );
       
       // Allow delete if user is authenticated and owns the prescription

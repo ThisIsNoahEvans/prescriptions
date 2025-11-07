@@ -17,7 +17,6 @@ function getScrollbarWidth(): number {
   const outer = document.createElement('div');
   outer.style.visibility = 'hidden';
   outer.style.overflow = 'scroll';
-  outer.style.msOverflowStyle = 'scrollbar'; // Needed for IE
   document.body.appendChild(outer);
 
   const inner = document.createElement('div');
@@ -53,4 +52,3 @@ export function unlockBodyScroll(): void {
   document.body.style.overflow = '';
   document.body.style.paddingRight = '';
 }
-

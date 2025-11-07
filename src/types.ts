@@ -15,6 +15,7 @@ export interface Prescription {
   supplyLog: SupplyLogEntry[];
   photoUrls?: string[]; // Array of Firebase Storage URLs for medication photos
   categoryId?: string; // Optional category ID
+  notes?: string; // Optional notes
   createdAt: Timestamp;
 }
 

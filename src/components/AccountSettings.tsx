@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { Modal } from './Modal';
 import { User, MultiFactorInfo } from 'firebase/auth';
 import { TotpSecret } from 'firebase/auth';
 import {
@@ -17,7 +18,6 @@ import { LinkProviderModal } from './LinkProviderModal';
 import { DeleteAccountModal } from './DeleteAccountModal';
 import { DeleteMFAConfirmationModal } from './DeleteMFAConfirmationModal';
 import { UnlinkProviderModal } from './UnlinkProviderModal';
-import { lockBodyScroll, unlockBodyScroll } from '../utils/scrollLock';
 
 interface AccountSettingsProps {
   user: User;
@@ -61,10 +61,6 @@ export function AccountSettings({
   // Account deletion states
   const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
 
-  // Modal states
-  const [isVisible, setIsVisible] = useState(false);
-  const [isClosing, setIsClosing] = useState(false);
-  const scrollLockedRef = useRef(false);
 
   // Get provider info
   const isGoogleUser = user.providerData.some((provider) => provider.providerId === 'google.com');
@@ -83,54 +79,6 @@ export function AccountSettings({
   useEffect(() => {
     updateMFAStatus();
   }, [updateMFAStatus]);
-
-  // Modal animation and body scroll lock
-  useEffect(() => {
-    if (isOpen) {
-      setIsClosing(false);
-      setIsVisible(false);
-      if (!scrollLockedRef.current) {
-        lockBodyScroll();
-        scrollLockedRef.current = true;
-      }
-      requestAnimationFrame(() => {
-        setIsVisible(true);
-      });
-    } else {
-      setIsVisible(false);
-      if (scrollLockedRef.current) {
-        unlockBodyScroll();
-        scrollLockedRef.current = false;
-      }
-    }
-
-    return () => {
-      if (scrollLockedRef.current) {
-        unlockBodyScroll();
-        scrollLockedRef.current = false;
-      }
-    };
-  }, [isOpen]);
-
-  const handleClose = () => {
-    setIsClosing(true);
-    setIsVisible(false);
-    if (scrollLockedRef.current) {
-      unlockBodyScroll();
-      scrollLockedRef.current = false;
-    }
-    setTimeout(() => {
-      if (scrollLockedRef.current) {
-        unlockBodyScroll();
-        scrollLockedRef.current = false;
-      }
-      onClose();
-    }, 300);
-  };
-
-  if (!isOpen && !isClosing) {
-    return null;
-  }
 
   // MFA handlers
   const handleStartEnrollment = async () => {
@@ -381,16 +329,12 @@ export function AccountSettings({
   // Render MFA enrollment view
   if (isEnrolling && totpSecret) {
     return (
-      <div
-        className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-60 transition-opacity duration-300 ${
-          isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
-        }`}
-      >
-        <div
-          className={`bg-white dark:bg-gray-800 w-full max-w-lg p-6 rounded-xl shadow-2xl transition-transform duration-300 ease-out max-h-[90vh] overflow-y-auto ${
-            isVisible ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'
-          }`}
-        >
+      <Modal isOpen={true} onClose={() => {
+        setIsEnrolling(false);
+        setTotpSecret(null);
+        setQrCodeDataUrl('');
+        setVerificationCode('');
+      }} maxWidth="lg" contentClassName="p-6">
           <div className="flex justify-between items-start mb-4">
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
               Enable Two-Factor Authentication
@@ -479,33 +423,17 @@ export function AccountSettings({
               </button>
             </div>
           </form>
-        </div>
-      </div>
+      </Modal>
     );
   }
 
   return (
     <>
-      <div
-        className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-60 transition-opacity duration-300 ${
-          isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
-        }`}
-        onClick={(e) => {
-          if (e.target === e.currentTarget && isVisible) {
-            handleClose();
-          }
-        }}
-      >
-        <div
-          className={`bg-white dark:bg-gray-800 w-full max-w-3xl p-6 rounded-2xl shadow-2xl transition-transform duration-300 ease-out max-h-[90vh] overflow-y-auto ${
-            isVisible ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'
-          }`}
-          onClick={(e) => e.stopPropagation()}
-        >
+      <Modal isOpen={isOpen} onClose={onClose} maxWidth="3xl" contentClassName="p-6">
           <div className="flex justify-between items-start mb-6">
             <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Account Settings</h2>
             <button
-              onClick={handleClose}
+              onClick={onClose}
               className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
               aria-label="Close"
             >
@@ -745,8 +673,7 @@ export function AccountSettings({
               </button>
             </div>
           </div>
-        </div>
-      </div>
+      </Modal>
 
       <ReauthenticateModal
         user={user}
