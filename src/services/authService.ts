@@ -23,12 +23,22 @@ import { getFirebaseAuth } from '../firebase/config';
 
 /**
  * Sign in with Google
+ * Returns the user if successful, or throws an error with code 'auth/multi-factor-auth-required'
+ * In that case, use resolveMfaSignIn to complete the sign-in
  */
 export async function signInWithGoogle(): Promise<User> {
   const auth = getFirebaseAuth();
   const provider = new GoogleAuthProvider();
-  const userCredential = await signInWithPopup(auth, provider);
-  return userCredential.user;
+  try {
+    const userCredential = await signInWithPopup(auth, provider);
+    return userCredential.user;
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'auth/multi-factor-auth-required') {
+      // Re-throw with the resolver attached
+      throw { ...error, resolver: getMultiFactorResolver(auth, error as MultiFactorError) };
+    }
+    throw error;
+  }
 }
 
 /**

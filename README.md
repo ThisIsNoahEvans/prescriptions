@@ -242,6 +242,70 @@ firebase hosting:channel:deploy preview-channel-name
 
 This creates a temporary URL for testing.
 
+## Potential Future Features
+
+Here are some ideas for features that could make this app even more useful:
+
+### Medication Management
+- **Medication Photos**: Upload photos of prescription labels or medication boxes for quick reference
+- **Prescription Templates**: Save common prescriptions as templates for quick re-adding
+- **Medication Categories/Tags**: Organize prescriptions by type (e.g., "Heart Medication", "Pain Relief", "Vitamins")
+- **Medication Notes**: Add notes or instructions for each prescription (e.g., "Take with food", "Avoid alcohol")
+- **Prescription Expiry Dates**: Track when prescriptions expire and get warnings before expiry
+- **Refill Count Tracking**: Track how many refills you have left on a prescription
+- **Dosage Variations**: Handle prescriptions with varying doses (e.g., "Take 2 tablets for first week, then 1 tablet")
+
+### Notifications & Reminders
+- **Push Notifications**: Browser push notifications for reorder reminders (in addition to email)
+- **SMS Notifications**: Text message alerts for urgent reorder dates
+- **Take Medication Reminders**: Daily reminders to take medications at specific times
+- **Customizable Alert Thresholds**: Adjust the reorder buffer (currently 10 days) per prescription
+- **Multiple Alert Levels**: Different urgency levels (e.g., "Order soon", "Order now", "Urgent")
+
+### Data & Analytics
+- **Export Data**: Export prescription history to PDF or CSV for records
+- **Prescription History**: View archived/discontinued prescriptions
+- **Statistics Dashboard**: Charts showing medication usage patterns, supply trends, etc.
+- **Cost Tracking**: Track prescription costs and spending over time
+- **Supply Analytics**: Visualize supply levels and consumption rates
+
+### Sharing & Collaboration
+- **Family Accounts**: Share prescriptions with family members or caregivers
+- **Caregiver Access**: Grant limited access to family members to help manage medications
+- **Prescription Sharing**: Share prescription details with doctors or pharmacists
+- **Multi-User Support**: Track prescriptions for multiple people in one account
+
+### Integration & Automation
+- **Pharmacy Integration**: Connect with pharmacy APIs to automatically track deliveries
+- **Delivery Tracking**: Integration with delivery services (e.g., Royal Mail, UPS) for automatic delivery logging
+- **Calendar Integration**: Sync reorder dates with Google Calendar, Apple Calendar, etc.
+- **Medication Interaction Checker**: Warn about potential drug interactions
+- **Prescription Scanning**: Scan prescription labels using OCR to auto-fill information
+
+### User Experience
+- **Search & Filter**: Search prescriptions by name, filter by category, urgency, etc.
+- **Sorting Options**: Sort prescriptions by name, reorder date, run-out date, etc.
+- **Bulk Actions**: Select multiple prescriptions for bulk operations (delete, archive, etc.)
+- **Dark Mode**: Already implemented! 🌙
+- **Mobile App**: Native iOS/Android apps for on-the-go access
+- **Offline Support**: Work offline and sync when connection is restored
+- **Prescription Duplicates**: Detect and warn about duplicate prescriptions
+
+### Advanced Features
+- **Medication Schedule**: Create daily/weekly medication schedules with specific times
+- **Missed Dose Tracking**: Log when doses are missed and adjust calculations
+- **Prescription Backup**: Automatic backup to cloud storage or export
+- **Multiple Delivery Addresses**: Track deliveries to different addresses
+- **Prescription Strength Tracking**: Track different strengths of the same medication
+- **Batch/Expiry Tracking**: Track medication batch numbers and expiry dates
+- **Prescription Renewal Reminders**: Remind when prescriptions need to be renewed with doctor
+
+### Reporting
+- **Monthly Reports**: Generate monthly summaries of medication usage
+- **Doctor Visit Reports**: Prepare reports for doctor visits showing medication history
+- **Insurance Reports**: Generate reports for insurance claims
+- **Compliance Reports**: Track medication adherence and compliance
+
 ## Technical Details
 
 - **Framework**: React 18 with TypeScript

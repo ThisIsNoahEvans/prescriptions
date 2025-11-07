@@ -142,15 +142,34 @@ export function SignInForm({ onError, onSuccess }: SignInFormProps) {
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     try {
-      await signInWithGoogle();
-      onSuccess('Signed in with Google successfully!');
-    } catch (error: any) {
-      console.error('Error signing in with Google:', error);
-      if (error.code === 'auth/multi-factor-auth-required') {
-        onError('MFA is required for this account. Please use email/password sign-in.');
-      } else {
-        onError('Error signing in with Google. Please try again.');
+      try {
+        await signInWithGoogle();
+        onSuccess('Signed in with Google successfully!');
+      } catch (mfaError: unknown) {
+        // Handle MFA required error
+        const error = mfaError as { code?: string; resolver?: MultiFactorResolver };
+        if (error.code === 'auth/multi-factor-auth-required' && error.resolver) {
+          setMfaResolver(error.resolver);
+          setNeedsMfa(true);
+          setIsLoading(false);
+          return;
+        }
+        throw mfaError;
       }
+    } catch (error: unknown) {
+      console.error('Error signing in with Google:', error);
+      const firebaseError = error as { code?: string; message?: string };
+      let errorMessage = 'Error signing in with Google. Please try again.';
+      
+      if (firebaseError.code === 'auth/popup-closed-by-user') {
+        errorMessage = 'Sign-in popup was closed. Please try again.';
+      } else if (firebaseError.code === 'auth/popup-blocked') {
+        errorMessage = 'Sign-in popup was blocked. Please allow popups and try again.';
+      } else if (firebaseError.code === 'auth/cancelled-popup-request') {
+        errorMessage = 'Only one popup request is allowed at a time. Please try again.';
+      }
+      
+      onError(errorMessage);
     } finally {
       setIsLoading(false);
     }
