@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Prescription, SupplyInfo } from '../types';
+import { Prescription, SupplyInfo, Category } from '../types';
 import { formatDisplayDate, dateDiffInDays, normalizeDate } from '../utils/dateUtils';
 import { PhotoGalleryModal } from './PhotoGalleryModal';
 
 interface PrescriptionCardProps {
   prescription: Prescription;
   supplyInfo: SupplyInfo;
+  categories: Category[];
   onLogDelivery: (prescription: Prescription) => void;
   onViewLogs: (prescription: Prescription) => void;
   onDelete: (prescription: Prescription) => void;
@@ -14,6 +15,7 @@ interface PrescriptionCardProps {
 export function PrescriptionCard({
   prescription,
   supplyInfo,
+  categories,
   onLogDelivery,
   onViewLogs,
   onDelete,
@@ -22,6 +24,9 @@ export function PrescriptionCard({
   const today = normalizeDate(new Date());
   const reorderDiff = dateDiffInDays(supplyInfo.reorderDate, today);
   const hasPhotos = prescription.photoUrls && prescription.photoUrls.length > 0;
+  const category = prescription.categoryId
+    ? categories.find((cat) => cat.id === prescription.categoryId)
+    : null;
 
   // Determine re-order date color and label
   let reorderColor = 'text-gray-700';
@@ -49,8 +54,17 @@ export function PrescriptionCard({
     <>
       <div className="bg-white dark:bg-gray-800 shadow-lg rounded-xl p-6 border border-gray-200 dark:border-gray-700 transition-shadow hover:shadow-xl">
         <div className="flex flex-col md:flex-row justify-between md:items-center mb-4">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <h3 className="text-3xl font-bold text-gray-900 dark:text-white">{prescription.name}</h3>
+            {category && (
+              <div className="flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-700">
+                <div
+                  className="w-3 h-3 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: category.color }}
+                />
+                <span className="text-gray-700 dark:text-gray-300">{category.name}</span>
+              </div>
+            )}
             {hasPhotos && (
               <button
                 onClick={() => setIsPhotoGalleryOpen(true)}

@@ -14,6 +14,14 @@ export interface Prescription {
   startSupply: number;
   supplyLog: SupplyLogEntry[];
   photoUrls?: string[]; // Array of Firebase Storage URLs for medication photos
+  categoryId?: string; // Optional category ID
+  createdAt: Timestamp;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  color: string; // Hex color code
   createdAt: Timestamp;
 }
 

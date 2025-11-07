@@ -5,6 +5,7 @@ import { uploadPrescriptionPhoto } from '../services/storageService';
 import { formatDateYYYYMMDD } from '../utils/dateUtils';
 import { Prescription } from '../types';
 import { PhotoUpload } from './PhotoUpload';
+import { CategorySelector } from './CategorySelector';
 import { lockBodyScroll, unlockBodyScroll } from '../utils/scrollLock';
 
 interface AddPrescriptionFormProps {
@@ -27,6 +28,7 @@ export function AddPrescriptionForm({
   const [dailyDose, setDailyDose] = useState('1');
   const [startDate, setStartDate] = useState(formatDateYYYYMMDD(new Date()));
   const [startSupply, setStartSupply] = useState('0');
+  const [categoryId, setCategoryId] = useState<string | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedPhotos, setSelectedPhotos] = useState<File[]>([]);
   const [photoUploadResetKey, setPhotoUploadResetKey] = useState(0);
@@ -100,6 +102,7 @@ export function AddPrescriptionForm({
           dailyDose: dailyDoseNum,
           startDate: Timestamp.fromDate(startDateObj),
           startSupply: startSupplyNum,
+          categoryId: categoryId || undefined,
         };
 
         const prescriptionId = await addPrescription(userId, prescriptionData);
@@ -124,6 +127,7 @@ export function AddPrescriptionForm({
           dailyDose: dailyDoseNum,
           startDate: Timestamp.fromDate(startDateObj),
           startSupply: startSupplyNum,
+          categoryId: categoryId || undefined,
         });
       }
 
@@ -133,6 +137,7 @@ export function AddPrescriptionForm({
       setDailyDose('1');
       setStartDate(formatDateYYYYMMDD(new Date()));
       setStartSupply('0');
+      setCategoryId(undefined);
       setSelectedPhotos([]);
       setPhotoUploadResetKey((prev) => prev + 1); // Force PhotoUpload to reset
       
@@ -262,6 +267,16 @@ export function AddPrescriptionForm({
             required
             className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
             placeholder="How many tablets you have now"
+          />
+        </div>
+
+        <div className="md:col-span-2">
+          <CategorySelector
+            userId={userId}
+            selectedCategoryId={categoryId}
+            onCategoryChange={setCategoryId}
+            onError={onError}
+            onSuccess={onSuccess}
           />
         </div>
 

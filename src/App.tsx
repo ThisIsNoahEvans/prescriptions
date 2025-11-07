@@ -13,6 +13,7 @@ import { LogDeliveryModal } from './components/LogDeliveryModal';
 import { DeliveryLogsModal } from './components/DeliveryLogsModal';
 import { DeleteConfirmationModal } from './components/DeleteConfirmationModal';
 import { SignOutConfirmationModal } from './components/SignOutConfirmationModal';
+import { CategoryManager } from './components/CategoryManager';
 import { Toast } from './components/Toast';
 import { LoadingScreen } from './components/LoadingScreen';
 
@@ -30,6 +31,7 @@ function App() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isSignOutModalOpen, setIsSignOutModalOpen] = useState(false);
   const [showMFASettings, setShowMFASettings] = useState(false);
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
   const [showAddPrescriptionForm, setShowAddPrescriptionForm] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [isToastError, setIsToastError] = useState(false);
@@ -175,10 +177,16 @@ function App() {
                 </div>
                 <div className="flex flex-wrap gap-2 sm:gap-3">
                   <button
-                    onClick={() => setShowMFASettings(!showMFASettings)}
+                    onClick={() => setShowCategoryManager(true)}
                     className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 underline"
                   >
-                    {showMFASettings ? 'Hide' : 'MFA'} Settings
+                    Categories
+                  </button>
+                  <button
+                    onClick={() => setShowMFASettings(true)}
+                    className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 underline"
+                  >
+                    MFA Settings
                   </button>
                   <button
                     onClick={handleSignOut}
@@ -246,6 +254,7 @@ function App() {
                   My Medications
                 </h2>
                 <PrescriptionList
+                  userId={user.uid}
                   prescriptions={prescriptions}
                   isLoading={isLoadingPrescriptions}
                   onLogDelivery={handleLogDelivery}
@@ -305,15 +314,26 @@ function App() {
         />
 
         {user && (
-          <MFASettings
-            user={user}
-            isOpen={showMFASettings}
-            onClose={() => {
-              setShowMFASettings(false);
-            }}
-            onError={(message) => showToast(message, true)}
-            onSuccess={(message) => showToast(message)}
-          />
+          <>
+            <CategoryManager
+              userId={user.uid}
+              isOpen={showCategoryManager}
+              onClose={() => {
+                setShowCategoryManager(false);
+              }}
+              onError={(message) => showToast(message, true)}
+              onSuccess={(message) => showToast(message)}
+            />
+            <MFASettings
+              user={user}
+              isOpen={showMFASettings}
+              onClose={() => {
+                setShowMFASettings(false);
+              }}
+              onError={(message) => showToast(message, true)}
+              onSuccess={(message) => showToast(message)}
+            />
+          </>
         )}
 
         <Toast
