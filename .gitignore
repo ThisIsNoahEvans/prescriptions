@@ -33,3 +33,9 @@ functions/lib/
 functions/node_modules/
 functions/.env
 
+# Firebase Hosting
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+

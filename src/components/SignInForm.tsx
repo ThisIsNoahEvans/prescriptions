@@ -7,7 +7,7 @@ import {
   sendPasswordReset,
   resolveMfaSignIn,
 } from '../services/authService';
-import { User, MultiFactorResolver } from 'firebase/auth';
+import { MultiFactorResolver } from 'firebase/auth';
 
 interface SignInFormProps {
   onError: (message: string) => void;
@@ -47,7 +47,7 @@ export function SignInForm({ onError, onSuccess }: SignInFormProps) {
 
     try {
       if (isSignUp) {
-        const user = await createAccountWithEmail(email, password);
+        await createAccountWithEmail(email, password);
         setNeedsVerification(true);
         setVerificationEmail(email);
         onSuccess('Account created! Please check your email to verify your account.');
@@ -189,7 +189,7 @@ export function SignInForm({ onError, onSuccess }: SignInFormProps) {
     try {
       // Get the current user (they should be signed in but not verified)
       const { getFirebaseAuth } = await import('../firebase/config');
-      const { getAuth, sendEmailVerification } = await import('firebase/auth');
+      const { sendEmailVerification } = await import('firebase/auth');
       const auth = getFirebaseAuth();
       const currentUser = auth.currentUser;
       

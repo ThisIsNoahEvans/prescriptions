@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
-import { User } from 'firebase/auth';
+import { useState, useEffect, useCallback } from 'react';
+import { User, MultiFactorInfo } from 'firebase/auth';
+import { TotpSecret } from 'firebase/auth';
 import {
   hasMFA,
   getMFAFactors,
@@ -9,7 +10,6 @@ import {
   sendVerificationEmail,
 } from '../services/authService';
 import { ReauthenticateModal } from './ReauthenticateModal';
-import QRCode from 'qrcode';
 
 interface MFASettingsProps {
   user: User;
@@ -19,10 +19,9 @@ interface MFASettingsProps {
 
 export function MFASettings({ user, onError, onSuccess }: MFASettingsProps) {
   const [mfaEnabled, setMfaEnabled] = useState(false);
-  const [factors, setFactors] = useState<any[]>([]);
+  const [factors, setFactors] = useState<MultiFactorInfo[]>([]);
   const [isEnrolling, setIsEnrolling] = useState(false);
-  const [totpSecret, setTotpSecret] = useState<any>(null);
-  const [qrCodeUrl, setQrCodeUrl] = useState('');
+  const [totpSecret, setTotpSecret] = useState<TotpSecret | null>(null);
   const [verificationCode, setVerificationCode] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [isResendingVerification, setIsResendingVerification] = useState(false);
@@ -30,17 +29,17 @@ export function MFASettings({ user, onError, onSuccess }: MFASettingsProps) {
   const [pendingAction, setPendingAction] = useState<(() => Promise<void>) | null>(null);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
 
-  useEffect(() => {
-    updateMFAStatus();
-  }, [user]);
-
-  const updateMFAStatus = () => {
+  const updateMFAStatus = useCallback(() => {
     const enabled = hasMFA(user);
     setMfaEnabled(enabled);
     if (enabled) {
       setFactors(getMFAFactors(user));
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    updateMFAStatus();
+  }, [updateMFAStatus]);
 
   const handleStartEnrollment = async () => {
     // Check if email is verified first
@@ -53,11 +52,12 @@ export function MFASettings({ user, onError, onSuccess }: MFASettingsProps) {
     try {
       const result = await startTotpMFAEnrollment(user);
       setTotpSecret(result.secret);
-      setQrCodeUrl(result.qrCodeUrl);
       
       // Generate QR code image from the otpauth URL
+      // Use dynamic import to avoid build issues
       try {
-        const qrDataUrl = await QRCode.toDataURL(result.qrCodeUrl, {
+        const QRCodeModule = await import('qrcode');
+        const qrDataUrl = await QRCodeModule.default.toDataURL(result.qrCodeUrl, {
           width: 256,
           margin: 2,
         });
@@ -67,19 +67,20 @@ export function MFASettings({ user, onError, onSuccess }: MFASettingsProps) {
         onError('Error generating QR code. Please try again.');
         setIsEnrolling(false);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error starting MFA enrollment:', error);
-      if (error.code === 'auth/unverified-email') {
+      const firebaseError = error as { code?: string };
+      if (firebaseError.code === 'auth/unverified-email') {
         onError('Please verify your email address before enabling 2FA. Check your inbox for the verification email.');
         setIsEnrolling(false);
-      } else if (error.code === 'auth/requires-recent-login') {
+      } else if (firebaseError.code === 'auth/requires-recent-login') {
         // Store the action to retry after re-authentication
         setPendingAction(async () => {
           const result = await startTotpMFAEnrollment(user);
           setTotpSecret(result.secret);
-          setQrCodeUrl(result.qrCodeUrl);
           // Generate QR code image
-          const qrDataUrl = await QRCode.toDataURL(result.qrCodeUrl, {
+          const QRCodeModule = await import('qrcode');
+          const qrDataUrl = await QRCodeModule.default.toDataURL(result.qrCodeUrl, {
             width: 256,
             margin: 2,
           });
@@ -99,9 +100,10 @@ export function MFASettings({ user, onError, onSuccess }: MFASettingsProps) {
     try {
       await sendVerificationEmail(user);
       onSuccess('Verification email sent! Please check your inbox and verify your email before enabling 2FA.');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error resending verification email:', error);
-      if (error.code === 'auth/too-many-requests') {
+      const firebaseError = error as { code?: string };
+      if (firebaseError.code === 'auth/too-many-requests') {
         onError('Too many requests. Please wait a few minutes before requesting another verification email.');
       } else {
         onError('Error sending verification email. Please try again.');
@@ -119,26 +121,36 @@ export function MFASettings({ user, onError, onSuccess }: MFASettingsProps) {
       return;
     }
 
+    if (!totpSecret) {
+      onError('TOTP secret not available. Please start enrollment again.');
+      return;
+    }
+
     setIsVerifying(true);
     try {
       await completeTotpMFAEnrollment(user, totpSecret, verificationCode);
       onSuccess('MFA enabled successfully!');
       setTotpSecret(null);
-      setQrCodeUrl('');
       setVerificationCode('');
       setIsEnrolling(false);
       updateMFAStatus();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error completing MFA enrollment:', error);
-      if (error.code === 'auth/invalid-verification-code') {
+      const firebaseError = error as { code?: string };
+      if (firebaseError.code === 'auth/invalid-verification-code') {
         onError('Invalid verification code. Please try again.');
-      } else if (error.code === 'auth/requires-recent-login') {
+      } else if (firebaseError.code === 'auth/requires-recent-login') {
         // Store the action to retry after re-authentication
+        if (!totpSecret) {
+          onError('TOTP secret not available. Please start enrollment again.');
+          setIsVerifying(false);
+          return;
+        }
+        const secretToUse = totpSecret; // Capture for closure
         setPendingAction(async () => {
-          await completeTotpMFAEnrollment(user, totpSecret, verificationCode);
+          await completeTotpMFAEnrollment(user, secretToUse, verificationCode);
           onSuccess('MFA enabled successfully!');
           setTotpSecret(null);
-          setQrCodeUrl('');
           setVerificationCode('');
           setIsEnrolling(false);
           updateMFAStatus();
@@ -161,9 +173,10 @@ export function MFASettings({ user, onError, onSuccess }: MFASettingsProps) {
       await unenrollMFA(user, factorUid);
       onSuccess('MFA disabled successfully.');
       updateMFAStatus();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error unenrolling MFA:', error);
-      if (error.code === 'auth/requires-recent-login') {
+      const firebaseError = error as { code?: string };
+      if (firebaseError.code === 'auth/requires-recent-login') {
         // Store the action to retry after re-authentication
         setPendingAction(async () => {
           await unenrollMFA(user, factorUid);
@@ -182,7 +195,7 @@ export function MFASettings({ user, onError, onSuccess }: MFASettingsProps) {
       try {
         await pendingAction();
         setPendingAction(null);
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Error retrying action after re-authentication:', error);
         onError('Error completing action. Please try again.');
       }
@@ -215,7 +228,9 @@ export function MFASettings({ user, onError, onSuccess }: MFASettingsProps) {
           <code className="block p-2 bg-gray-100 dark:bg-gray-700 rounded text-sm break-all">
             {(() => {
               // Try to access the secret key from the TotpSecret object
-              const secret = (totpSecret as any).secret || (totpSecret as any).secretKey || (totpSecret as any).sharedSecretKey;
+              // TotpSecret doesn't expose the secret directly, but we can try common property names
+              const secretObj = totpSecret as unknown as { secret?: string; secretKey?: string; sharedSecretKey?: string };
+              const secret = secretObj.secret || secretObj.secretKey || secretObj.sharedSecretKey;
               return secret || 'Secret key not available';
             })()}
           </code>
@@ -255,7 +270,7 @@ export function MFASettings({ user, onError, onSuccess }: MFASettingsProps) {
               onClick={() => {
                 setIsEnrolling(false);
                 setTotpSecret(null);
-                setQrCodeUrl('');
+                setQrCodeDataUrl('');
                 setVerificationCode('');
               }}
               className="flex-1 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-300 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200"

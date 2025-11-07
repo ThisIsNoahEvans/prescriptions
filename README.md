@@ -183,12 +183,72 @@ npm run serve
 
 Then trigger it manually or use the Firebase emulator.
 
+## Deployment (Firebase Hosting)
+
+The app can be deployed to Firebase Hosting for free with a global CDN.
+
+### Setup Firebase Hosting
+
+1. **Install Firebase CLI** (if not already installed):
+```bash
+npm install -g firebase-tools
+```
+
+2. **Login to Firebase**:
+```bash
+firebase login
+```
+
+3. **Initialize Firebase in your project** (if not already done):
+```bash
+firebase init
+```
+
+   When prompted:
+   - Select **Hosting** (and any other services you need)
+   - Choose your Firebase project
+   - Set public directory to `dist` (Vite's build output)
+   - Configure as single-page app: **Yes**
+   - Set up automatic builds and deploys with GitHub: **No** (or Yes if you want CI/CD)
+
+4. **Build your app**:
+```bash
+npm run build
+```
+
+5. **Deploy to Firebase Hosting**:
+```bash
+firebase deploy --only hosting
+```
+
+   Or deploy everything (hosting + functions + firestore rules):
+```bash
+firebase deploy
+```
+
+### Custom Domain (Optional)
+
+1. Go to [Firebase Console](https://console.firebase.google.com/) → Your Project → Hosting
+2. Click "Add custom domain"
+3. Follow the instructions to verify your domain
+4. Firebase will provide DNS records to add to your domain registrar
+
+### Preview Deployments
+
+You can preview your site before deploying:
+```bash
+firebase hosting:channel:deploy preview-channel-name
+```
+
+This creates a temporary URL for testing.
+
 ## Technical Details
 
 - **Framework**: React 18 with TypeScript
 - **Build Tool**: Vite
 - **Styling**: Tailwind CSS
 - **Backend**: Firebase (Firestore + Auth + Functions)
+- **Hosting**: Firebase Hosting (Global CDN)
 - **State Management**: React Hooks
 - **Email Service**: Firebase Extension `firestore-send-email` (supports Gmail, SendGrid, Mailgun, or custom SMTP)
 
