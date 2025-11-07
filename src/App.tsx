@@ -14,12 +14,14 @@ import { DeliveryLogsModal } from './components/DeliveryLogsModal';
 import { DeleteConfirmationModal } from './components/DeleteConfirmationModal';
 import { SignOutConfirmationModal } from './components/SignOutConfirmationModal';
 import { Toast } from './components/Toast';
+import { LoadingScreen } from './components/LoadingScreen';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingPrescriptions, setIsLoadingPrescriptions] = useState(false);
+  const [showLoadingScreen, setShowLoadingScreen] = useState(true);
   const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedPrescriptionForLogs, setSelectedPrescriptionForLogs] = useState<Prescription | null>(null);
@@ -141,18 +143,20 @@ function App() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600 text-lg">Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  const handleLoadingComplete = () => {
+    setShowLoadingScreen(false);
+  };
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
+    <>
+      {showLoadingScreen && (
+        <LoadingScreen isLoading={isLoading} onLoaded={handleLoadingComplete} />
+      )}
+      <div
+        className={`min-h-screen bg-gray-100 dark:bg-gray-900 transition-opacity duration-500 ${
+          showLoadingScreen ? 'opacity-0' : 'opacity-100'
+        }`}
+      >
       <div className="container mx-auto p-4 sm:p-6 md:p-8 max-w-4xl">
         <header className="mb-6 sm:mb-8">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-4">
@@ -318,7 +322,8 @@ function App() {
           onClose={() => setToastMessage('')}
         />
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 
