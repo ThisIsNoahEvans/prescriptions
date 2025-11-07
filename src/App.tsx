@@ -23,6 +23,7 @@ function App() {
   const [selectedPrescriptionForLogs, setSelectedPrescriptionForLogs] = useState<Prescription | null>(null);
   const [isLogsModalOpen, setIsLogsModalOpen] = useState(false);
   const [showMFASettings, setShowMFASettings] = useState(false);
+  const [showAddPrescriptionForm, setShowAddPrescriptionForm] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [isToastError, setIsToastError] = useState(false);
 
@@ -132,29 +133,33 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="container mx-auto p-4 md:p-8 max-w-4xl">
-        <header className="mb-8">
-          <div className="flex justify-between items-start mb-2">
-            <div>
-              <h1 className="text-4xl font-bold text-blue-800 mb-2">My Prescription Tracker</h1>
-              <p className="text-lg text-gray-600">Never miss a re-order date again.</p>
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
+      <div className="container mx-auto p-4 sm:p-6 md:p-8 max-w-4xl">
+        <header className="mb-6 sm:mb-8">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-4">
+            <div className="flex-1">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-blue-800 dark:text-blue-400 mb-1 sm:mb-2">
+                My Prescription Tracker
+              </h1>
+              <p className="text-sm sm:text-base md:text-lg text-gray-600 dark:text-gray-400">
+                Never miss a re-order date again.
+              </p>
             </div>
             {user && (
-              <div className="flex flex-col items-end gap-2">
-                <div className="text-sm text-gray-600 dark:text-gray-400">
+              <div className="flex flex-col sm:items-end gap-2">
+                <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 break-all sm:break-normal">
                   {user.displayName || user.email}
                 </div>
-                <div className="flex gap-3">
+                <div className="flex flex-wrap gap-2 sm:gap-3">
                   <button
                     onClick={() => setShowMFASettings(!showMFASettings)}
-                    className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 underline"
+                    className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 underline"
                   >
                     {showMFASettings ? 'Hide' : 'MFA'} Settings
                   </button>
                   <button
                     onClick={handleSignOut}
-                    className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 underline"
+                    className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 underline"
                   >
                     Sign Out
                   </button>
@@ -181,16 +186,51 @@ function App() {
               </div>
             )}
 
-            <AddPrescriptionForm
-              userId={user.uid}
-              onPrescriptionAdded={() => {}}
-              onError={(message) => showToast(message, true)}
-              onSuccess={(message) => showToast(message)}
-            />
+            <div className="mb-6 sm:mb-8">
+              <button
+                onClick={() => setShowAddPrescriptionForm(true)}
+                className="w-full sm:w-auto bg-blue-600 dark:bg-blue-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 dark:hover:bg-blue-600 transition-all duration-200 flex items-center justify-center gap-2"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4v16m8-8H4"
+                  />
+                </svg>
+                Add New Prescription
+              </button>
+            </div>
 
-            <div className="space-y-8">
+            {showAddPrescriptionForm && (
+              <AddPrescriptionForm
+                userId={user.uid}
+                onPrescriptionAdded={() => {
+                  // Don't close here - let handleClose handle it with animation
+                }}
+                onClose={() => {
+                  // Component handles animation timing, just close immediately
+                  setShowAddPrescriptionForm(false);
+                }}
+                onError={(message) => showToast(message, true)}
+                onSuccess={(message) => {
+                  showToast(message);
+                  // Don't close here - let handleClose handle it with animation
+                }}
+              />
+            )}
+
+            <div className="space-y-6 sm:space-y-8">
               <div>
-                <h2 className="text-3xl font-semibold text-gray-900 dark:text-white mb-6">My Medications</h2>
+                <h2 className="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white mb-4 sm:mb-6">
+                  My Medications
+                </h2>
                 <PrescriptionList
                   prescriptions={prescriptions}
                   isLoading={isLoadingPrescriptions}

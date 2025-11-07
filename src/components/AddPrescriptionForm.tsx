@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { Timestamp } from 'firebase/firestore';
 import { addPrescription } from '../services/prescriptionService';
 import { uploadPrescriptionPhoto } from '../services/storageService';
@@ -9,6 +9,7 @@ import { PhotoUpload } from './PhotoUpload';
 interface AddPrescriptionFormProps {
   userId: string;
   onPrescriptionAdded: () => void;
+  onClose: () => void;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
 }
@@ -16,6 +17,7 @@ interface AddPrescriptionFormProps {
 export function AddPrescriptionForm({
   userId,
   onPrescriptionAdded,
+  onClose,
   onError,
   onSuccess,
 }: AddPrescriptionFormProps) {
@@ -27,6 +29,33 @@ export function AddPrescriptionForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedPhotos, setSelectedPhotos] = useState<File[]>([]);
   const [photoUploadResetKey, setPhotoUploadResetKey] = useState(0);
+  const [isVisible, setIsVisible] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+
+  // Lock body scroll when form is open
+  useEffect(() => {
+    // Prevent body scroll
+    document.body.style.overflow = 'hidden';
+    
+    // Trigger animation after mount
+    requestAnimationFrame(() => {
+      setIsVisible(true);
+    });
+
+    return () => {
+      // Restore body scroll on unmount
+      document.body.style.overflow = '';
+    };
+  }, []);
+
+  const handleClose = () => {
+    setIsClosing(true);
+    setIsVisible(false);
+    // Wait for animation to complete before closing
+    setTimeout(() => {
+      onClose();
+    }, 300); // Match duration-300
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -95,8 +124,6 @@ export function AddPrescriptionForm({
         });
       }
 
-      onSuccess(`${name} added successfully!`);
-
       // Reset form
       setName('');
       setPackSize('');
@@ -105,6 +132,10 @@ export function AddPrescriptionForm({
       setStartSupply('0');
       setSelectedPhotos([]);
       setPhotoUploadResetKey((prev) => prev + 1); // Force PhotoUpload to reset
+      
+      onSuccess(`${name} added successfully!`);
+      // Close with animation
+      handleClose();
       onPrescriptionAdded();
     } catch (error) {
       console.error('Error adding prescription:', error);
@@ -115,9 +146,44 @@ export function AddPrescriptionForm({
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-2xl shadow-lg mb-8 border border-gray-200 dark:border-gray-700">
-      <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">Add New Prescription</h2>
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div 
+      className={`fixed inset-0 z-50 bg-gray-100 dark:bg-gray-900 overflow-y-auto transition-opacity duration-300 ${
+        isVisible ? 'opacity-100' : 'opacity-0'
+      }`}
+    >
+      <div 
+        className={`min-h-full bg-white dark:bg-gray-800 shadow-xl transition-transform duration-300 ease-out ${
+          isVisible ? 'translate-y-0' : 'translate-y-4'
+        }`}
+      >
+        <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between z-10 shadow-sm">
+          <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white">
+            Add New Prescription
+          </h2>
+          <button
+            type="button"
+            onClick={handleClose}
+            className="p-2 -mr-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+            aria-label="Close"
+          >
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+        
+        <div className="max-w-2xl mx-auto p-4 sm:p-6 md:p-8 pb-8 sm:pb-12">
+      <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
         <div>
           <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Medication Name
@@ -205,16 +271,26 @@ export function AddPrescriptionForm({
           />
         </div>
 
-        <div className="md:col-span-2">
+        <div className="md:col-span-2 flex flex-col sm:flex-row gap-3 sm:gap-4 pt-2">
+          <button
+            type="button"
+            onClick={handleClose}
+            disabled={isSubmitting}
+            className="w-full sm:w-auto bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-bold py-3 px-6 rounded-lg shadow-sm hover:bg-gray-300 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Cancel
+          </button>
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full md:w-auto bg-blue-600 text-white font-bold py-3 px-8 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full sm:w-auto bg-blue-600 dark:bg-blue-500 text-white font-bold py-3 px-8 rounded-lg shadow-md hover:bg-blue-700 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmitting ? 'Adding...' : 'Add Prescription'}
           </button>
         </div>
       </form>
+        </div>
+      </div>
     </div>
   );
 }
