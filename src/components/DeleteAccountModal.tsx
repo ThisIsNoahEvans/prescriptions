@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
+import { Modal } from './Modal';
 import { User } from 'firebase/auth';
 import { deleteAccount } from '../services/authService';
 import { deleteAllUserData } from '../services/userDataService';
 import { ReauthenticateModal } from './ReauthenticateModal';
-import { lockBodyScroll, unlockBodyScroll } from '../utils/scrollLock';
 
 interface DeleteAccountModalProps {
   user: User;
@@ -21,44 +21,15 @@ export function DeleteAccountModal({
   onError,
 }: DeleteAccountModalProps) {
   const [isDeleting, setIsDeleting] = useState(false);
-  const [isVisible, setIsVisible] = useState(false);
-  const [isClosing, setIsClosing] = useState(false);
   const [confirmText, setConfirmText] = useState('');
   const [showReauthModal, setShowReauthModal] = useState(false);
   const requiredText = 'DELETE';
 
   useEffect(() => {
     if (isOpen) {
-      setIsClosing(false);
-      setIsVisible(false);
       setConfirmText('');
-      lockBodyScroll();
-      requestAnimationFrame(() => {
-        setIsVisible(true);
-      });
-    } else {
-      setIsVisible(false);
-      unlockBodyScroll();
     }
-
-    return () => {
-      unlockBodyScroll();
-    };
   }, [isOpen]);
-
-  const handleClose = () => {
-    if (isDeleting) return;
-    setIsClosing(true);
-    setIsVisible(false);
-    unlockBodyScroll();
-    setTimeout(() => {
-      onClose();
-    }, 300);
-  };
-
-  if (!isOpen && !isClosing) {
-    return null;
-  }
 
   const performDelete = async () => {
     try {
@@ -70,7 +41,7 @@ export function DeleteAccountModal({
       
       // Call the parent's onConfirm to handle sign out
       await onConfirm();
-      handleClose();
+      onClose();
     } catch (error) {
       console.error('Error deleting account:', error);
       onError('Error deleting account. Please try again.');
@@ -117,25 +88,8 @@ export function DeleteAccountModal({
     }
   };
 
-  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget && !isDeleting) {
-      handleClose();
-    }
-  };
-
   return (
-    <div
-      className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-60 transition-opacity duration-300 ${
-        isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
-      }`}
-      onClick={handleBackdropClick}
-    >
-      <div
-        className={`bg-white dark:bg-gray-800 w-full max-w-lg p-8 rounded-2xl shadow-2xl transition-transform duration-300 ease-out ${
-          isVisible ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'
-        }`}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Modal isOpen={isOpen} onClose={onClose} maxWidth="lg" contentClassName="p-8">
         <h2 className="text-2xl font-semibold mb-2 text-red-600 dark:text-red-400">Delete Account</h2>
         <p className="text-lg mb-4 text-gray-700 dark:text-gray-300">
           Are you sure you want to delete your account?
@@ -165,7 +119,7 @@ export function DeleteAccountModal({
         <div className="flex justify-end gap-4">
           <button
             type="button"
-            onClick={handleClose}
+            onClick={onClose}
             disabled={isDeleting}
             className="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-bold py-2 px-6 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -179,7 +133,6 @@ export function DeleteAccountModal({
             {isDeleting ? 'Deleting...' : 'Delete Account'}
           </button>
         </div>
-      </div>
 
       <ReauthenticateModal
         user={user}
@@ -195,7 +148,7 @@ export function DeleteAccountModal({
           setIsDeleting(false);
         }}
       />
-    </div>
+    </Modal>
   );
 }
 

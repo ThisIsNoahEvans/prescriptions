@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react';
-import { lockBodyScroll, unlockBodyScroll } from '../utils/scrollLock';
+import { Modal } from './Modal';
 
 interface DeleteMFAConfirmationModalProps {
   isOpen: boolean;
@@ -14,64 +13,13 @@ export function DeleteMFAConfirmationModal({
   onConfirm,
   onError,
 }: DeleteMFAConfirmationModalProps) {
-  const [isVisible, setIsVisible] = useState(false);
-  const [isClosing, setIsClosing] = useState(false);
-
-  useEffect(() => {
-    if (isOpen) {
-      setIsClosing(false);
-      setIsVisible(false);
-      lockBodyScroll();
-      requestAnimationFrame(() => {
-        setIsVisible(true);
-      });
-    } else {
-      setIsVisible(false);
-      unlockBodyScroll();
-    }
-
-    return () => {
-      unlockBodyScroll();
-    };
-  }, [isOpen]);
-
-  const handleClose = () => {
-    setIsClosing(true);
-    setIsVisible(false);
-    unlockBodyScroll();
-    setTimeout(() => {
-      onClose();
-    }, 300);
-  };
-
-  if (!isOpen && !isClosing) {
-    return null;
-  }
-
   const handleConfirm = () => {
     onConfirm();
-    handleClose();
-  };
-
-  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) {
-      handleClose();
-    }
+    onClose();
   };
 
   return (
-    <div
-      className={`fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black bg-opacity-60 transition-opacity duration-300 ${
-        isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
-      }`}
-      onClick={handleBackdropClick}
-    >
-      <div
-        className={`bg-white dark:bg-gray-800 w-full max-w-lg p-8 rounded-2xl shadow-2xl transition-transform duration-300 ease-out ${
-          isVisible ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'
-        }`}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Modal isOpen={isOpen} onClose={onClose} maxWidth="lg" contentClassName="p-8" className="z-[60]">
         <h2 className="text-2xl font-semibold mb-2 text-red-600 dark:text-red-400">Disable MFA</h2>
         <p className="text-lg mb-6 text-gray-700 dark:text-gray-300">
           Are you sure you want to disable two-factor authentication?
@@ -83,7 +31,7 @@ export function DeleteMFAConfirmationModal({
         <div className="flex justify-end gap-4">
           <button
             type="button"
-            onClick={handleClose}
+            onClick={onClose}
             className="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-bold py-2 px-6 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-all duration-200"
           >
             Cancel
@@ -95,8 +43,7 @@ export function DeleteMFAConfirmationModal({
             Disable MFA
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 

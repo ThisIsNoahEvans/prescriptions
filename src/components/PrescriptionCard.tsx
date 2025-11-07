@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Prescription, SupplyInfo, Category } from '../types';
 import { formatDisplayDate, dateDiffInDays, normalizeDate } from '../utils/dateUtils';
 import { PhotoGalleryModal } from './PhotoGalleryModal';
+import { NotesModal } from './NotesModal';
 
 interface PrescriptionCardProps {
   prescription: Prescription;
@@ -21,12 +22,20 @@ export function PrescriptionCard({
   onDelete,
 }: PrescriptionCardProps) {
   const [isPhotoGalleryOpen, setIsPhotoGalleryOpen] = useState(false);
+  const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
   const today = normalizeDate(new Date());
   const reorderDiff = dateDiffInDays(supplyInfo.reorderDate, today);
   const hasPhotos = prescription.photoUrls && prescription.photoUrls.length > 0;
+  const hasNotes = prescription.notes && prescription.notes.trim().length > 0;
   const category = prescription.categoryId
     ? categories.find((cat) => cat.id === prescription.categoryId)
     : null;
+  
+  // Truncate notes for display (show first 100 characters)
+  const MAX_NOTES_PREVIEW = 100;
+  const notesPreview = hasNotes && prescription.notes!.length > MAX_NOTES_PREVIEW
+    ? prescription.notes!.substring(0, MAX_NOTES_PREVIEW) + '...'
+    : prescription.notes;
 
   // Determine re-order date color and label
   let reorderColor = 'text-gray-700';
@@ -96,6 +105,40 @@ export function PrescriptionCard({
           </span>
         </div>
 
+        {/* Notes section - show above dates */}
+        {hasNotes && (
+          <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+            <div className="flex items-start gap-2">
+              <svg
+                className="w-5 h-5 text-gray-500 dark:text-gray-400 flex-shrink-0 mt-0.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                />
+              </svg>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-gray-700 dark:text-gray-300 break-words">
+                  {notesPreview}
+                </p>
+                {prescription.notes!.length > MAX_NOTES_PREVIEW && (
+                  <button
+                    onClick={() => setIsNotesModalOpen(true)}
+                    className="mt-2 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors font-medium"
+                  >
+                    More...
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
           <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Re-order Date</p>
@@ -140,6 +183,15 @@ export function PrescriptionCard({
           onClose={() => setIsPhotoGalleryOpen(false)}
           photoUrls={prescription.photoUrls || []}
           prescriptionName={prescription.name}
+        />
+      )}
+
+      {hasNotes && (
+        <NotesModal
+          prescriptionName={prescription.name}
+          notes={prescription.notes!}
+          isOpen={isNotesModalOpen}
+          onClose={() => setIsNotesModalOpen(false)}
         />
       )}
     </>

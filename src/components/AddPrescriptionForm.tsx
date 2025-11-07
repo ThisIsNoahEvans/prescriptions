@@ -1,4 +1,5 @@
 import { useState, useEffect, FormEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { Timestamp } from 'firebase/firestore';
 import { addPrescription } from '../services/prescriptionService';
 import { uploadPrescriptionPhoto } from '../services/storageService';
@@ -29,6 +30,7 @@ export function AddPrescriptionForm({
   const [startDate, setStartDate] = useState(formatDateYYYYMMDD(new Date()));
   const [startSupply, setStartSupply] = useState('0');
   const [categoryId, setCategoryId] = useState<string | undefined>(undefined);
+  const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedPhotos, setSelectedPhotos] = useState<File[]>([]);
   const [photoUploadResetKey, setPhotoUploadResetKey] = useState(0);
@@ -102,7 +104,8 @@ export function AddPrescriptionForm({
           dailyDose: dailyDoseNum,
           startDate: Timestamp.fromDate(startDateObj),
           startSupply: startSupplyNum,
-          categoryId: categoryId || undefined,
+          ...(categoryId && { categoryId }),
+          ...(notes.trim() && { notes: notes.trim() }),
         };
 
         const prescriptionId = await addPrescription(userId, prescriptionData);
@@ -127,7 +130,8 @@ export function AddPrescriptionForm({
           dailyDose: dailyDoseNum,
           startDate: Timestamp.fromDate(startDateObj),
           startSupply: startSupplyNum,
-          categoryId: categoryId || undefined,
+          ...(categoryId && { categoryId }),
+          ...(notes.trim() && { notes: notes.trim() }),
         });
       }
 
@@ -138,6 +142,7 @@ export function AddPrescriptionForm({
       setStartDate(formatDateYYYYMMDD(new Date()));
       setStartSupply('0');
       setCategoryId(undefined);
+      setNotes('');
       setSelectedPhotos([]);
       setPhotoUploadResetKey((prev) => prev + 1); // Force PhotoUpload to reset
       
@@ -153,7 +158,12 @@ export function AddPrescriptionForm({
     }
   };
 
-  return (
+  // Ensure document.body exists before using createPortal
+  if (typeof document === 'undefined' || !document.body) {
+    return null;
+  }
+
+  return createPortal(
     <div 
       className={`fixed inset-0 z-50 bg-gray-100 dark:bg-gray-900 overflow-y-auto transition-opacity duration-300 ${
         isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
@@ -281,6 +291,20 @@ export function AddPrescriptionForm({
         </div>
 
         <div className="md:col-span-2">
+          <label htmlFor="notes" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Notes (Optional)
+          </label>
+          <textarea
+            id="notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={4}
+            className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white resize-y"
+            placeholder="Add any notes about this prescription..."
+          />
+        </div>
+
+        <div className="md:col-span-2">
           <PhotoUpload
             onPhotosChange={setSelectedPhotos}
             maxPhotos={5}
@@ -309,7 +333,8 @@ export function AddPrescriptionForm({
       </form>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

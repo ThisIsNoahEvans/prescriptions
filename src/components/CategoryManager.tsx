@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
+import { Modal } from './Modal';
 import { Category } from '../types';
 import { subscribeToCategories, addCategory, updateCategory, deleteCategory } from '../services/categoryService';
-import { lockBodyScroll, unlockBodyScroll } from '../utils/scrollLock';
 import { DeleteCategoryModal } from './DeleteCategoryModal';
 
 interface CategoryManagerProps {
@@ -29,31 +29,11 @@ export function CategoryManager({ userId, isOpen, onClose, onError, onSuccess }:
   const [categories, setCategories] = useState<Category[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
-  const [isVisible, setIsVisible] = useState(false);
-  const [isClosing, setIsClosing] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryColor, setNewCategoryColor] = useState(DEFAULT_COLORS[0]);
   const [isAdding, setIsAdding] = useState(false);
   const [selectedCategoryForDelete, setSelectedCategoryForDelete] = useState<Category | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-
-  useEffect(() => {
-    if (isOpen) {
-      setIsClosing(false);
-      setIsVisible(false);
-      lockBodyScroll();
-      requestAnimationFrame(() => {
-        setIsVisible(true);
-      });
-    } else {
-      setIsVisible(false);
-      unlockBodyScroll();
-    }
-
-    return () => {
-      unlockBodyScroll();
-    };
-  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -68,16 +48,11 @@ export function CategoryManager({ userId, isOpen, onClose, onError, onSuccess }:
   }, [userId, isOpen]);
 
   const handleClose = () => {
-    setIsClosing(true);
-    setIsVisible(false);
-    unlockBodyScroll();
-    setTimeout(() => {
-      setEditingId(null);
-      setEditingName('');
-      setNewCategoryName('');
-      setNewCategoryColor(DEFAULT_COLORS[0]);
-      onClose();
-    }, 300);
+    setEditingId(null);
+    setEditingName('');
+    setNewCategoryName('');
+    setNewCategoryColor(DEFAULT_COLORS[0]);
+    onClose();
   };
 
   const handleStartEdit = (category: Category) => {
@@ -148,31 +123,12 @@ export function CategoryManager({ userId, isOpen, onClose, onError, onSuccess }:
     }
   };
 
-  if (!isOpen && !isClosing) {
-    return null;
-  }
-
   return (
-    <div
-      className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-60 transition-opacity duration-300 ${
-        isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
-      }`}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          handleClose();
-        }
-      }}
-    >
-      <div
-        className={`bg-white dark:bg-gray-800 w-full max-w-2xl p-6 rounded-2xl shadow-2xl transition-transform duration-300 ease-out max-h-[90vh] overflow-y-auto ${
-          isVisible ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'
-        }`}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Modal isOpen={isOpen} onClose={handleClose} maxWidth="2xl" contentClassName="p-6">
         <div className="flex justify-between items-start mb-6">
           <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Manage Categories</h2>
           <button
-            onClick={handleClose}
+            onClick={onClose}
             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
             aria-label="Close"
           >
@@ -327,13 +283,12 @@ export function CategoryManager({ userId, isOpen, onClose, onError, onSuccess }:
 
         <div className="mt-6 flex justify-end">
           <button
-            onClick={handleClose}
+            onClick={onClose}
             className="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-bold py-2 px-6 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-all duration-200"
           >
             Close
           </button>
         </div>
-      </div>
 
       <DeleteCategoryModal
         category={selectedCategoryForDelete}
@@ -345,7 +300,7 @@ export function CategoryManager({ userId, isOpen, onClose, onError, onSuccess }:
         onConfirm={handleConfirmDelete}
         onError={onError}
       />
-    </div>
+    </Modal>
   );
 }
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { lockBodyScroll, unlockBodyScroll } from '../utils/scrollLock';
+import { createPortal } from 'react-dom';
 
 interface PhotoGalleryModalProps {
   isOpen: boolean;
@@ -15,36 +15,14 @@ export function PhotoGalleryModal({
   prescriptionName,
 }: PhotoGalleryModalProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
     if (isOpen && photoUrls.length > 0) {
-      setIsVisible(false);
-      // Lock body scroll with scrollbar compensation
-      lockBodyScroll();
-      // Trigger animation after mount
-      requestAnimationFrame(() => {
-        setIsVisible(true);
-      });
-    } else {
-      setIsVisible(false);
-      unlockBodyScroll();
+      setCurrentIndex(0);
     }
-
-    return () => {
-      unlockBodyScroll();
-    };
   }, [isOpen, photoUrls.length]);
 
   if (!isOpen || photoUrls.length === 0) return null;
-
-  const handleClose = () => {
-    setIsVisible(false);
-    unlockBodyScroll();
-    setTimeout(() => {
-      onClose();
-    }, 300);
-  };
 
   const goToPrevious = () => {
     setCurrentIndex((prev) => (prev === 0 ? photoUrls.length - 1 : prev - 1));
@@ -57,15 +35,13 @@ export function PhotoGalleryModal({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowLeft') goToPrevious();
     if (e.key === 'ArrowRight') goToNext();
-    if (e.key === 'Escape') handleClose();
+    if (e.key === 'Escape') onClose();
   };
 
-  return (
+  return createPortal(
     <div
-      className={`fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4 transition-opacity duration-300 ${
-        isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
-      }`}
-      onClick={handleClose}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4"
+      onClick={onClose}
       onKeyDown={handleKeyDown}
       tabIndex={-1}
     >
@@ -75,7 +51,7 @@ export function PhotoGalleryModal({
       >
         {/* Close button */}
         <button
-          onClick={handleClose}
+          onClick={onClose}
           className="absolute top-4 right-4 z-10 bg-white dark:bg-gray-800 text-gray-800 dark:text-white rounded-full p-2 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors shadow-lg"
           aria-label="Close gallery"
         >
