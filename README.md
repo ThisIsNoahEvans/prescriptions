@@ -114,13 +114,82 @@ The built files will be in the `dist` directory.
 4. **Delete Prescriptions**:
    - Click "Delete" on any prescription card to remove it
 
+## Email Notifications (Firebase Functions)
+
+The app includes automatic email notifications when prescriptions need to be reordered. This uses Firebase Cloud Functions.
+
+### Setup Firebase Functions
+
+1. **Install Firebase CLI** (if not already installed):
+```bash
+npm install -g firebase-tools
+```
+
+2. **Login to Firebase**:
+```bash
+firebase login
+```
+
+3. **Initialize Firebase Functions** (if not already done):
+```bash
+firebase init functions
+```
+
+4. **Install function dependencies**:
+```bash
+cd functions
+npm install
+cd ..
+```
+
+5. **Configure email service**:
+   - Copy `functions/.env.example` to `functions/.env`
+   - Choose one of the email options:
+     - **Gmail**: Set `EMAIL_SERVICE=gmail` and provide your Gmail address and App Password
+     - **SendGrid**: Set `EMAIL_SERVICE=sendgrid` and provide your SendGrid API key
+     - **Custom SMTP**: Set `EMAIL_SERVICE=custom` and provide SMTP details
+
+6. **Set environment variables in Firebase**:
+```bash
+firebase functions:config:set email.service="gmail" email.user="your-email@gmail.com" email.app_password="your-app-password" email.from="noreply@prescriptiontracker.com"
+```
+
+   Or for SendGrid:
+```bash
+firebase functions:config:set email.service="sendgrid" sendgrid.api_key="your-api-key" email.from="noreply@prescriptiontracker.com"
+```
+
+7. **Deploy the function**:
+```bash
+firebase deploy --only functions
+```
+
+### How It Works
+
+- The function runs daily at 9:00 AM UTC
+- It checks all users' prescriptions
+- Calculates reorder dates (10 days before running out)
+- Sends email notifications when reorder dates are today or in the past
+- Combines multiple prescriptions into a single email when applicable
+
+### Testing Locally
+
+You can test the function locally:
+```bash
+cd functions
+npm run serve
+```
+
+Then trigger it manually or use the Firebase emulator.
+
 ## Technical Details
 
 - **Framework**: React 18 with TypeScript
 - **Build Tool**: Vite
 - **Styling**: Tailwind CSS
-- **Backend**: Firebase (Firestore + Auth)
+- **Backend**: Firebase (Firestore + Auth + Functions)
 - **State Management**: React Hooks
+- **Email Service**: Nodemailer (supports Gmail, SendGrid, or custom SMTP)
 
 ## License
 

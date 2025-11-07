@@ -8,6 +8,7 @@ import { AddPrescriptionForm } from './components/AddPrescriptionForm';
 import { PrescriptionList } from './components/PrescriptionList';
 import { CalendarView } from './components/CalendarView';
 import { SignInForm } from './components/SignInForm';
+import { MFASettings } from './components/MFASettings';
 import { LogDeliveryModal } from './components/LogDeliveryModal';
 import { DeliveryLogsModal } from './components/DeliveryLogsModal';
 import { Toast } from './components/Toast';
@@ -21,6 +22,7 @@ function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedPrescriptionForLogs, setSelectedPrescriptionForLogs] = useState<Prescription | null>(null);
   const [isLogsModalOpen, setIsLogsModalOpen] = useState(false);
+  const [showMFASettings, setShowMFASettings] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [isToastError, setIsToastError] = useState(false);
 
@@ -140,15 +142,23 @@ function App() {
             </div>
             {user && (
               <div className="flex flex-col items-end gap-2">
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-gray-600 dark:text-gray-400">
                   {user.displayName || user.email}
                 </div>
-                <button
-                  onClick={handleSignOut}
-                  className="text-sm text-gray-600 hover:text-gray-800 underline"
-                >
-                  Sign Out
-                </button>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowMFASettings(!showMFASettings)}
+                    className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 underline"
+                  >
+                    {showMFASettings ? 'Hide' : 'MFA'} Settings
+                  </button>
+                  <button
+                    onClick={handleSignOut}
+                    className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 underline"
+                  >
+                    Sign Out
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -161,6 +171,16 @@ function App() {
           />
         ) : (
           <>
+            {showMFASettings && (
+              <div className="mb-8">
+                <MFASettings
+                  user={user}
+                  onError={(message) => showToast(message, true)}
+                  onSuccess={(message) => showToast(message)}
+                />
+              </div>
+            )}
+
             <AddPrescriptionForm
               userId={user.uid}
               onPrescriptionAdded={() => {}}
