@@ -149,14 +149,17 @@ function App() {
     setShowLoadingScreen(false);
   };
 
+  // Combined loading state: wait for both auth and prescriptions to load
+  const isFullyLoading = isLoading || (user !== null && isLoadingPrescriptions);
+
   return (
     <>
       {showLoadingScreen && (
-        <LoadingScreen isLoading={isLoading} onLoaded={handleLoadingComplete} />
+        <LoadingScreen isLoading={isFullyLoading} onLoaded={handleLoadingComplete} />
       )}
       <div
-        className={`min-h-screen bg-gray-100 dark:bg-gray-900 transition-opacity duration-500 ${
-          showLoadingScreen ? 'opacity-0' : 'opacity-100'
+        className={`min-h-screen bg-gray-100 dark:bg-gray-900 transition-all duration-500 ${
+          showLoadingScreen ? 'opacity-0 scale-[1.15]' : 'opacity-100 scale-100'
         }`}
       >
       <div className="container mx-auto p-4 sm:p-6 md:p-8 max-w-4xl">

@@ -79,7 +79,9 @@ export function LinkProviderModal({
 
     setIsSubmitting(true);
     try {
-      await linkEmailPasswordProvider(user, email, password);
+      const updatedUser = await linkEmailPasswordProvider(user, email, password);
+      // Reload the user object to get updated provider data
+      await updatedUser.reload();
       onSuccess('Email/password account linked successfully!');
       handleClose();
     } catch (error: any) {

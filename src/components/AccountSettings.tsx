@@ -10,10 +10,8 @@ import {
   sendVerificationEmail,
   linkGoogleProvider,
   unlinkProvider,
-  deleteAccount,
   signOutAuth,
 } from '../services/authService';
-import { deleteAllUserData } from '../services/userDataService';
 import { ReauthenticateModal } from './ReauthenticateModal';
 import { LinkProviderModal } from './LinkProviderModal';
 import { DeleteAccountModal } from './DeleteAccountModal';
@@ -72,6 +70,7 @@ export function AccountSettings({
   const isGoogleUser = user.providerData.some((provider) => provider.providerId === 'google.com');
   const isEmailUser = user.providerData.some((provider) => provider.providerId === 'password');
   const hasMultipleProviders = user.providerData.length > 1;
+  const isOnlyGoogleUser = isGoogleUser && !isEmailUser;
 
   const updateMFAStatus = useCallback(() => {
     const enabled = hasMFA(user);
@@ -135,7 +134,9 @@ export function AccountSettings({
 
   // MFA handlers
   const handleStartEnrollment = async () => {
-    if (!user.emailVerified) {
+    // Only require email verification if user has email/password sign-in method
+    // Google users don't need email verification since Google handles verification
+    if (!isOnlyGoogleUser && !user.emailVerified) {
       onError('Please verify your email address before enabling 2FA. Check your inbox for the verification email.');
       return;
     }
@@ -297,13 +298,17 @@ export function AccountSettings({
   const handleLinkGoogle = async () => {
     setIsLinkingGoogle(true);
     try {
-      await linkGoogleProvider(user);
+      const updatedUser = await linkGoogleProvider(user);
+      // Reload the user object to get updated provider data
+      await updatedUser.reload();
       onSuccess('Google account linked successfully!');
-    } catch (error: any) {
+      // The auth state listener in App.tsx will automatically update the user
+    } catch (error: unknown) {
       console.error('Error linking Google:', error);
-      if (error.code === 'auth/provider-already-linked') {
+      const firebaseError = error as { code?: string };
+      if (firebaseError.code === 'auth/provider-already-linked') {
         onError('Google account is already linked to this account.');
-      } else if (error.code === 'auth/credential-already-in-use') {
+      } else if (firebaseError.code === 'auth/credential-already-in-use') {
         onError('This Google account is already associated with another account.');
       } else {
         onError('Error linking Google account. Please try again.');
@@ -318,13 +323,11 @@ export function AccountSettings({
   };
 
   const handleLinkEmailSuccess = (message: string) => {
+    // The user object has already been reloaded in LinkProviderModal
+    // The auth state listener in App.tsx will automatically update the user
     onSuccess(message);
     setShowLinkEmailModal(false);
     setIsLinkingEmail(false);
-    // Reload user to get updated provider data
-    setTimeout(() => {
-      window.location.reload();
-    }, 1000);
   };
 
   const handleUnlinkProvider = (providerId: string, providerName: string) => {
@@ -340,17 +343,17 @@ export function AccountSettings({
   const handleConfirmUnlinkProvider = async (providerId: string) => {
     setIsUnlinking(true);
     try {
-      await unlinkProvider(user, providerId);
+      const updatedUser = await unlinkProvider(user, providerId);
+      // Reload the user object to get updated provider data
+      await updatedUser.reload();
       onSuccess('Sign-in method unlinked successfully.');
       setShowUnlinkProviderModal(false);
       setProviderToUnlink(null);
-      // Reload user to get updated provider data
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
-    } catch (error: any) {
+      // The auth state listener in App.tsx will automatically update the user
+    } catch (error) {
       console.error('Error unlinking provider:', error);
-      if (error.code === 'auth/no-such-provider') {
+      const firebaseError = error as { code?: string };
+      if (firebaseError.code === 'auth/no-such-provider') {
         onError('This sign-in method is not linked to your account.');
       } else {
         onError('Error unlinking sign-in method. Please try again.');
@@ -360,15 +363,18 @@ export function AccountSettings({
   };
 
   const handleDeleteAccount = async () => {
+    // Note: The actual deletion (deleteAllUserData and deleteAccount) is handled
+    // in DeleteAccountModal.performDelete(). This function just handles sign out
+    // and cleanup after the deletion is complete.
     try {
-      await deleteAllUserData(user.uid);
-      await deleteAccount(user);
       await signOutAuth();
       onAccountDeleted();
       onSuccess('Account deleted successfully.');
     } catch (error) {
-      console.error('Error deleting account:', error);
-      onError('Error deleting account. Please try again.');
+      console.error('Error signing out after account deletion:', error);
+      // Even if sign out fails, the account is already deleted, so just proceed
+      onAccountDeleted();
+      onSuccess('Account deleted successfully.');
     }
   };
 
@@ -524,7 +530,8 @@ export function AccountSettings({
                     {user.emailVerified ? '✓ Verified' : '✗ Not Verified'}
                   </p>
                 </div>
-                {!user.emailVerified && (
+                {/* Only show resend verification button if user has email/password sign-in method */}
+                {!isOnlyGoogleUser && !user.emailVerified && (
                   <button
                     onClick={handleResendVerification}
                     disabled={isResendingVerification}
@@ -685,7 +692,8 @@ export function AccountSettings({
                 </div>
               ) : (
                 <div>
-                  {!user.emailVerified ? (
+                  {/* Only show email verification warning if user has email/password sign-in method */}
+                  {!isOnlyGoogleUser && !user.emailVerified ? (
                     <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-4">
                       <p className="text-red-800 dark:text-red-200 text-sm mb-2">
                         <strong>Email verification required</strong>
@@ -714,7 +722,7 @@ export function AccountSettings({
 
                   <button
                     onClick={handleStartEnrollment}
-                    disabled={isEnrolling || !user.emailVerified}
+                    disabled={isEnrolling || (!isOnlyGoogleUser && !user.emailVerified)}
                     className="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isEnrolling ? 'Setting up...' : 'Enable MFA'}

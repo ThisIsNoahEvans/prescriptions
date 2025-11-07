@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { User } from 'firebase/auth';
 import { deleteAccount } from '../services/authService';
 import { deleteAllUserData } from '../services/userDataService';
+import { ReauthenticateModal } from './ReauthenticateModal';
 import { lockBodyScroll, unlockBodyScroll } from '../utils/scrollLock';
 
 interface DeleteAccountModalProps {
@@ -23,6 +24,7 @@ export function DeleteAccountModal({
   const [isVisible, setIsVisible] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [confirmText, setConfirmText] = useState('');
+  const [showReauthModal, setShowReauthModal] = useState(false);
   const requiredText = 'DELETE';
 
   useEffect(() => {
@@ -58,13 +60,7 @@ export function DeleteAccountModal({
     return null;
   }
 
-  const handleConfirm = async () => {
-    if (confirmText !== requiredText) {
-      onError(`Please type "${requiredText}" to confirm.`);
-      return;
-    }
-
-    setIsDeleting(true);
+  const performDelete = async () => {
     try {
       // Delete all user data first
       await deleteAllUserData(user.uid);
@@ -78,6 +74,45 @@ export function DeleteAccountModal({
     } catch (error) {
       console.error('Error deleting account:', error);
       onError('Error deleting account. Please try again.');
+    }
+  };
+
+  const handleConfirm = async () => {
+    if (confirmText !== requiredText) {
+      onError(`Please type "${requiredText}" to confirm.`);
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await performDelete();
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      const errorCode = (error as { code?: string }).code;
+      if (errorCode === 'auth/requires-recent-login' || errorCode === 'auth/user-token-expired') {
+        // Need to re-authenticate before deleting
+        setShowReauthModal(true);
+        setIsDeleting(false);
+      } else {
+        onError('Error deleting account. Please try again.');
+        setIsDeleting(false);
+      }
+    }
+  };
+
+  const handleReauthSuccess = async () => {
+    setShowReauthModal(false);
+    setIsDeleting(true);
+    try {
+      await performDelete();
+    } catch (error) {
+      console.error('Error deleting account after re-auth:', error);
+      const errorCode = (error as { code?: string }).code;
+      if (errorCode === 'auth/requires-recent-login' || errorCode === 'auth/user-token-expired') {
+        onError('Re-authentication failed. Please try again.');
+      } else {
+        onError('Error deleting account. Please try again.');
+      }
       setIsDeleting(false);
     }
   };
@@ -145,6 +180,21 @@ export function DeleteAccountModal({
           </button>
         </div>
       </div>
+
+      <ReauthenticateModal
+        user={user}
+        isOpen={showReauthModal}
+        onClose={() => {
+          setShowReauthModal(false);
+          setIsDeleting(false);
+        }}
+        onSuccess={handleReauthSuccess}
+        onError={(message) => {
+          onError(message);
+          setShowReauthModal(false);
+          setIsDeleting(false);
+        }}
+      />
     </div>
   );
 }

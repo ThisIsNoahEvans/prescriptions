@@ -1,6 +1,5 @@
-import { getFirebaseDb, getFirebaseStorage } from '../firebase/config';
+import { getFirebaseDb } from '../firebase/config';
 import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
-import { ref, listAll, deleteObject } from 'firebase/storage';
 import { deletePrescriptionPhoto } from './storageService';
 
 /**
@@ -9,7 +8,6 @@ import { deletePrescriptionPhoto } from './storageService';
  */
 export async function deleteAllUserData(userId: string): Promise<void> {
   const db = getFirebaseDb();
-  const storage = getFirebaseStorage();
 
   // Delete all prescriptions
   const prescriptionsRef = collection(db, 'users', userId, 'prescriptions');
@@ -42,22 +40,9 @@ export async function deleteAllUserData(userId: string): Promise<void> {
     await deleteDoc(doc(db, 'users', userId, 'categories', categoryDoc.id));
   }
 
-  // Delete all photos from Storage (cleanup any orphaned files)
-  try {
-    const photosRef = ref(storage, `prescriptions/${userId}`);
-    const photosList = await listAll(photosRef);
-    
-    for (const photoRef of photosList.items) {
-      try {
-        await deleteObject(photoRef);
-      } catch (error) {
-        console.error('Error deleting photo from storage:', error);
-        // Continue even if photo deletion fails
-      }
-    }
-  } catch (error) {
-    // If the folder doesn't exist, that's fine
-    console.log('No photos folder found or already deleted');
-  }
+  // Note: We don't need to cleanup orphaned files in Storage because:
+  // 1. We've already deleted all photos individually from prescriptions above
+  // 2. Storage rules don't allow listing at the folder level (only individual files)
+  // 3. Any truly orphaned files will be cleaned up by Firebase Storage lifecycle rules if configured
 }
 
