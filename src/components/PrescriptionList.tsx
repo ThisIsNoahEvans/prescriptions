@@ -1,8 +1,11 @@
-import { Prescription } from '../types';
+import { useState, useEffect } from 'react';
+import { Prescription, Category } from '../types';
 import { calculateSupplyInfo } from '../utils/supplyCalculator';
+import { subscribeToCategories } from '../services/categoryService';
 import { PrescriptionCard } from './PrescriptionCard';
 
 interface PrescriptionListProps {
+  userId: string;
   prescriptions: Prescription[];
   isLoading: boolean;
   onLogDelivery: (prescription: Prescription) => void;
@@ -11,12 +14,24 @@ interface PrescriptionListProps {
 }
 
 export function PrescriptionList({
+  userId,
   prescriptions,
   isLoading,
   onLogDelivery,
   onViewLogs,
   onDelete,
 }: PrescriptionListProps) {
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToCategories(userId, (categoriesList) => {
+      setCategories(categoriesList);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [userId]);
   if (isLoading) {
     return (
       <div className="text-center p-8 bg-white rounded-lg shadow-sm">
@@ -52,6 +67,7 @@ export function PrescriptionList({
             key={prescription.id}
             prescription={prescription}
             supplyInfo={supplyInfo}
+            categories={categories}
             onLogDelivery={onLogDelivery}
             onViewLogs={onViewLogs}
             onDelete={onDelete}
