@@ -114,11 +114,11 @@ The built files will be in the `dist` directory.
 4. **Delete Prescriptions**:
    - Click "Delete" on any prescription card to remove it
 
-## Email Notifications (Firebase Functions)
+## Email Notifications (Firebase Extension)
 
-The app includes automatic email notifications when prescriptions need to be reordered. This uses Firebase Cloud Functions.
+The app includes automatic email notifications when prescriptions need to be reordered. This uses the [Firebase Extension `firestore-send-email`](https://firebase.google.com/docs/extensions/official/firestore-send-email) to send emails.
 
-### Setup Firebase Functions
+### Setup
 
 1. **Install Firebase CLI** (if not already installed):
 ```bash
@@ -130,47 +130,48 @@ npm install -g firebase-tools
 firebase login
 ```
 
-3. **Initialize Firebase Functions** (if not already done):
+3. **Install the Firebase Extension**:
+   - **Firebase Console**: Go to Extensions → Install extension → Search for "Trigger Email" → Install
+   - **CLI**: Run `firebase ext:install firebase/firestore-send-email --project=your-project-id`
+
+4. **Configure the Extension**:
+   When installing, you'll be prompted to configure:
+   - **SMTP connection details**: Provide your email service credentials (Gmail, SendGrid, Mailgun, etc.)
+   - **Mail collection**: Use `mail` (default) or specify a custom collection name
+   - **Default FROM address**: Your sender email address
+   - **Default REPLY-TO address**: Optional reply-to email address
+
+5. **Setup Firebase Functions** (if not already done):
 ```bash
 firebase init functions
-```
-
-4. **Install function dependencies**:
-```bash
 cd functions
 npm install
 cd ..
 ```
 
-5. **Configure email service**:
-   - Copy `functions/.env.example` to `functions/.env`
-   - Choose one of the email options:
-     - **Gmail**: Set `EMAIL_SERVICE=gmail` and provide your Gmail address and App Password
-     - **SendGrid**: Set `EMAIL_SERVICE=sendgrid` and provide your SendGrid API key
-     - **Custom SMTP**: Set `EMAIL_SERVICE=custom` and provide SMTP details
-
-6. **Set environment variables in Firebase**:
-```bash
-firebase functions:config:set email.service="gmail" email.user="your-email@gmail.com" email.app_password="your-app-password" email.from="noreply@prescriptiontracker.com"
-```
-
-   Or for SendGrid:
-```bash
-firebase functions:config:set email.service="sendgrid" sendgrid.api_key="your-api-key" email.from="noreply@prescriptiontracker.com"
-```
-
-7. **Deploy the function**:
+6. **Deploy the function**:
 ```bash
 firebase deploy --only functions
 ```
 
 ### How It Works
 
-- The function runs daily at 9:00 AM UTC
+- The Cloud Function runs daily at 9:00 AM UTC
 - It checks all users' prescriptions
 - Calculates reorder dates (10 days before running out)
-- Sends email notifications when reorder dates are today or in the past
+- When prescriptions need reordering, it adds a document to the `mail` collection in Firestore
+- The `firestore-send-email` extension automatically detects the new document and sends the email
 - Combines multiple prescriptions into a single email when applicable
+
+### Email Service Options
+
+The extension supports various email services:
+- **Gmail**: Requires an App Password (not your regular password)
+- **SendGrid**: Requires an API key
+- **Mailgun**: Requires API credentials
+- **Custom SMTP**: Any SMTP server
+
+See the [extension documentation](https://firebase.google.com/docs/extensions/official/firestore-send-email) for detailed setup instructions.
 
 ### Testing Locally
 
@@ -189,7 +190,7 @@ Then trigger it manually or use the Firebase emulator.
 - **Styling**: Tailwind CSS
 - **Backend**: Firebase (Firestore + Auth + Functions)
 - **State Management**: React Hooks
-- **Email Service**: Nodemailer (supports Gmail, SendGrid, or custom SMTP)
+- **Email Service**: Firebase Extension `firestore-send-email` (supports Gmail, SendGrid, Mailgun, or custom SMTP)
 
 ## License
 

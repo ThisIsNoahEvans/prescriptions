@@ -1,13 +1,14 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { calculateSupplyInfo, PrescriptionData } from './utils/supplyCalculator';
-import { sendEmail, generateReorderEmailHTML } from './utils/emailService';
+import { generateReorderEmailHTML, generateCombinedReorderEmailHTML } from './utils/emailService';
 import { normalizeDate, dateDiffInDays } from './utils/dateUtils';
 
 admin.initializeApp();
 
-// Access the 'prescriptions' named database
-// Note: If using a named database, ensure it's configured in Firebase project
+// Access the default Firestore database
+// The 'prescriptions' named database is accessed via the client SDK
+// For Cloud Functions, we use the default database
 const db = admin.firestore();
 
 /**
@@ -16,7 +17,7 @@ const db = admin.firestore();
 export const checkReorderDates = functions.pubsub
   .schedule('0 9 * * *') // Runs daily at 9:00 AM UTC
   .timeZone('UTC')
-  .onRun(async (context) => {
+  .onRun(async () => {
     console.log('Starting reorder date check...');
     const today = normalizeDate(new Date());
 
@@ -99,89 +100,43 @@ export const checkReorderDates = functions.pubsub
         }
 
         // Send email if there are prescriptions needing reorder
+        // Use Firestore-send-email extension by adding document to 'mail' collection
         if (prescriptionsNeedingReorder.length > 0) {
           try {
+            let subject: string;
+            let html: string;
+
             // If multiple prescriptions, send one email with all of them
             if (prescriptionsNeedingReorder.length === 1) {
               const item = prescriptionsNeedingReorder[0];
-              await sendEmail({
-                to: userEmail,
-                subject: `Reorder Reminder: ${item.prescription.name}`,
-                html: generateReorderEmailHTML(
-                  item.prescription.name,
-                  item.reorderDate,
-                  item.runOutDate,
-                  item.currentSupply
-                ),
-              });
+              subject = `Reorder Reminder: ${item.prescription.name}`;
+              html = generateReorderEmailHTML(
+                item.prescription.name,
+                item.reorderDate,
+                item.runOutDate,
+                item.currentSupply
+              );
             } else {
               // Multiple prescriptions - create combined email
-              const prescriptionsList = prescriptionsNeedingReorder
-                .map(
-                  (item) => `
-                <div class="info-box">
-                  <h3 style="margin-top: 0;">${item.prescription.name}</h3>
-                  <p><strong>Current Supply:</strong> ~${Math.round(item.currentSupply)} tablets</p>
-                  <p><strong>Reorder Date:</strong> ${item.reorderDate.toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                  })}</p>
-                  <p><strong>Estimated Run Out Date:</strong> ${item.runOutDate.toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                  })}</p>
-                </div>
-              `
-                )
-                .join('');
-
-              const combinedHTML = `
-                <!DOCTYPE html>
-                <html>
-                <head>
-                  <meta charset="utf-8">
-                  <style>
-                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                    .header { background-color: #2563eb; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
-                    .content { background-color: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
-                    .alert { background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; }
-                    .info-box { background-color: white; padding: 15px; margin: 15px 0; border-radius: 4px; border: 1px solid #e5e7eb; }
-                  </style>
-                </head>
-                <body>
-                  <div class="container">
-                    <div class="header">
-                      <h1>Prescription Reorder Reminders</h1>
-                    </div>
-                    <div class="content">
-                      <p>Hello,</p>
-                      <p>You have ${prescriptionsNeedingReorder.length} prescription(s) that need to be reordered:</p>
-                      ${prescriptionsList}
-                      <div class="alert">
-                        <strong>⚠️ Action Required:</strong> Please place your orders to ensure you don't run out of medication.
-                      </div>
-                      <p>Thank you for using Prescription Tracker!</p>
-                    </div>
-                  </div>
-                </body>
-                </html>
-              `;
-
-              await sendEmail({
-                to: userEmail,
-                subject: `Reorder Reminders: ${prescriptionsNeedingReorder.length} Prescription(s)`,
-                html: combinedHTML,
-              });
+              subject = `Reorder Reminders: ${prescriptionsNeedingReorder.length} Prescription(s)`;
+              html = generateCombinedReorderEmailHTML(prescriptionsNeedingReorder);
             }
 
+            // Add email document to Firestore 'mail' collection
+            // The firestore-send-email extension will automatically send it
+            await db.collection('mail').add({
+              to: userEmail,
+              message: {
+                subject: subject,
+                html: html,
+              },
+            });
+
             emailsSent++;
-            console.log(`Email sent to ${userEmail} for ${prescriptionsNeedingReorder.length} prescription(s)`);
+            console.log(`Email queued for ${userEmail} for ${prescriptionsNeedingReorder.length} prescription(s)`);
           } catch (error) {
             errors++;
-            console.error(`Error sending email to ${userEmail}:`, error);
+            console.error(`Error queuing email for ${userEmail}:`, error);
           }
         }
       }
