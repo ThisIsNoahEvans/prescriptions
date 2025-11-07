@@ -38,6 +38,11 @@ export function PhotoGalleryModal({
     if (e.key === 'Escape') onClose();
   };
 
+  // Ensure document.body exists before using createPortal
+  if (typeof document === 'undefined' || !document.body) {
+    return null;
+  }
+
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4"
@@ -153,7 +158,8 @@ export function PhotoGalleryModal({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

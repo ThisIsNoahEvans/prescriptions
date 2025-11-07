@@ -35,7 +35,6 @@ export function AddPrescriptionForm({
   const [selectedPhotos, setSelectedPhotos] = useState<File[]>([]);
   const [photoUploadResetKey, setPhotoUploadResetKey] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
-  const [isClosing, setIsClosing] = useState(false);
 
   // Lock body scroll when form is open
   useEffect(() => {
@@ -54,7 +53,6 @@ export function AddPrescriptionForm({
   }, []);
 
   const handleClose = () => {
-    setIsClosing(true);
     setIsVisible(false);
     // Restore body scroll immediately when closing starts
     unlockBodyScroll();

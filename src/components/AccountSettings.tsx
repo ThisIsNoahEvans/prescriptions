@@ -719,7 +719,6 @@ export function AccountSettings({
               await handleConfirmUnenroll(mfaFactorToDelete);
             }
           }}
-          onError={onError}
         />
       )}
 

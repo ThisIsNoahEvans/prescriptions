@@ -1,12 +1,56 @@
 <!doctype html>
-<html lang="en" class="h-full bg-gray-100">
+<html lang="en" class="h-full bg-gray-100 dark:bg-gray-900">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/logo.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="Track your prescriptions, delivery dates, and reorder times" />
+    <meta name="theme-color" content="#2563eb" />
+    <script>
+      // Set dark mode class before React hydrates to prevent flash
+      (function() {
+        const stored = localStorage.getItem('darkMode');
+        let isDark = false;
+        if (stored === 'true') {
+          isDark = true;
+        } else if (stored === null) {
+          // No stored preference, check system preference
+          isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        }
+        if (isDark) {
+          document.documentElement.classList.add('dark');
+        }
+        // Set body background immediately to prevent flash
+        document.body.style.backgroundColor = isDark ? '#111827' : '#f3f4f6';
+        // Set theme color based on mode
+        const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+        if (themeColorMeta) {
+          themeColorMeta.setAttribute('content', isDark ? '#111827' : '#2563eb');
+        }
+        // Set Apple status bar style based on mode
+        const appleStatusBarMeta = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+        if (appleStatusBarMeta) {
+          appleStatusBarMeta.setAttribute('content', isDark ? 'black-translucent' : 'default');
+        }
+      })();
+    </script>
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Prescriptions" />
+    <link rel="apple-touch-icon" href="/logo_192x192.png" />
+    <link rel="apple-touch-icon" href="/logo_512x512.png" />
+    <link rel="apple-touch-icon" href="/logo_180x180.png" />
+    <link rel="apple-touch-icon" href="/logo_152x152.png" />
+    <link rel="apple-touch-icon" href="/logo_144x144.png" />
+    <link rel="apple-touch-icon" href="/logo_120x120.png" />
+    <link rel="apple-touch-icon" href="/logo_76x76.png" />
+    <link rel="apple-touch-icon" href="/logo_60x60.png" />
+    <link rel="apple-touch-icon" href="/logo_57x57.png" />
+    <link rel="apple-touch-icon" href="/logo_384x384.png" />
+    <link rel="manifest" href="/manifest.json" />
     <title>Prescription Tracker</title>
   </head>
-  <body class="h-full">
+  <body class="h-full bg-gray-100 dark:bg-gray-900">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
