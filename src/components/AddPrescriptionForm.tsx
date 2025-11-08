@@ -8,6 +8,7 @@ import { Prescription } from '../types';
 import { PhotoUpload } from './PhotoUpload';
 import { CategorySelector } from './CategorySelector';
 import { lockBodyScroll, unlockBodyScroll } from '../utils/scrollLock';
+import { getUserSettings } from '../services/userSettingsService';
 
 interface AddPrescriptionFormProps {
   userId: string;
@@ -35,6 +36,22 @@ export function AddPrescriptionForm({
   const [selectedPhotos, setSelectedPhotos] = useState<File[]>([]);
   const [photoUploadResetKey, setPhotoUploadResetKey] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
+  const [emailThresholds, setEmailThresholds] = useState<number[]>([]);
+  const [thresholdInput, setThresholdInput] = useState('');
+
+  // Load default thresholds when form opens
+  useEffect(() => {
+    const loadDefaultThresholds = async () => {
+      try {
+        const settings = await getUserSettings(userId);
+        setEmailThresholds(settings.defaultEmailThresholds || [10]);
+      } catch (error) {
+        console.error('Error loading default thresholds:', error);
+        setEmailThresholds([10]); // Fallback to default
+      }
+    };
+    loadDefaultThresholds();
+  }, [userId]);
 
   // Lock body scroll when form is open
   useEffect(() => {
@@ -104,6 +121,7 @@ export function AddPrescriptionForm({
           startSupply: startSupplyNum,
           ...(categoryId && { categoryId }),
           ...(notes.trim() && { notes: notes.trim() }),
+          ...(emailThresholds.length > 0 && { emailThresholds }),
         };
 
         const prescriptionId = await addPrescription(userId, prescriptionData);
@@ -130,6 +148,7 @@ export function AddPrescriptionForm({
           startSupply: startSupplyNum,
           ...(categoryId && { categoryId }),
           ...(notes.trim() && { notes: notes.trim() }),
+          ...(emailThresholds.length > 0 && { emailThresholds }),
         });
       }
 
@@ -143,6 +162,8 @@ export function AddPrescriptionForm({
       setNotes('');
       setSelectedPhotos([]);
       setPhotoUploadResetKey((prev) => prev + 1); // Force PhotoUpload to reset
+      // Reset thresholds to default (will be reloaded on next open)
+      setEmailThresholds([]);
       
       onSuccess(`${name} added successfully!`);
       // Close with animation
@@ -300,6 +321,71 @@ export function AddPrescriptionForm({
             className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white resize-y"
             placeholder="Add any notes about this prescription..."
           />
+        </div>
+
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Email Reminder Thresholds (Optional)
+          </label>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+            Days before run out date to receive email reminders. Leave empty to use default settings.
+          </p>
+          <div className="flex gap-2 mb-2">
+            <input
+              type="number"
+              min="1"
+              value={thresholdInput}
+              onChange={(e) => setThresholdInput(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  const value = parseInt(thresholdInput.trim());
+                  if (!isNaN(value) && value > 0 && !emailThresholds.includes(value)) {
+                    setEmailThresholds([...emailThresholds, value].sort((a, b) => b - a));
+                    setThresholdInput('');
+                  }
+                }
+              }}
+              placeholder="Days (e.g., 10)"
+              className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const value = parseInt(thresholdInput.trim());
+                if (!isNaN(value) && value > 0 && !emailThresholds.includes(value)) {
+                  setEmailThresholds([...emailThresholds, value].sort((a, b) => b - a));
+                  setThresholdInput('');
+                }
+              }}
+              disabled={!thresholdInput.trim() || isNaN(parseInt(thresholdInput.trim()))}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Add
+            </button>
+          </div>
+          {emailThresholds.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {emailThresholds.map((threshold) => (
+                <div
+                  key={threshold}
+                  className="flex items-center gap-2 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded-lg"
+                >
+                  <span className="text-sm font-medium">{threshold} days</span>
+                  <button
+                    type="button"
+                    onClick={() => setEmailThresholds(emailThresholds.filter(t => t !== threshold))}
+                    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200"
+                    aria-label={`Remove ${threshold} days threshold`}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="md:col-span-2">

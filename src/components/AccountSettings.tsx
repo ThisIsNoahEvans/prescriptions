@@ -18,6 +18,7 @@ import { LinkProviderModal } from './LinkProviderModal';
 import { DeleteAccountModal } from './DeleteAccountModal';
 import { DeleteMFAConfirmationModal } from './DeleteMFAConfirmationModal';
 import { UnlinkProviderModal } from './UnlinkProviderModal';
+import { getUserSettings, updateUserSettings } from '../services/userSettingsService';
 
 interface AccountSettingsProps {
   user: User;
@@ -61,6 +62,12 @@ export function AccountSettings({
   // Account deletion states
   const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
 
+  // Email threshold states
+  const [defaultThresholds, setDefaultThresholds] = useState<number[]>([10]);
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [thresholdInput, setThresholdInput] = useState('');
+
 
   // Get provider info
   const isGoogleUser = user.providerData.some((provider) => provider.providerId === 'google.com');
@@ -79,6 +86,24 @@ export function AccountSettings({
   useEffect(() => {
     updateMFAStatus();
   }, [updateMFAStatus]);
+
+  // Load user settings
+  useEffect(() => {
+    const loadSettings = async () => {
+      if (isOpen) {
+        setIsLoadingSettings(true);
+        try {
+          const settings = await getUserSettings(user.uid);
+          setDefaultThresholds(settings.defaultEmailThresholds || [10]);
+        } catch (error) {
+          console.error('Error loading settings:', error);
+        } finally {
+          setIsLoadingSettings(false);
+        }
+      }
+    };
+    loadSettings();
+  }, [user.uid, isOpen]);
 
   // MFA handlers
   const handleStartEnrollment = async () => {
@@ -323,6 +348,35 @@ export function AccountSettings({
       // Even if sign out fails, the account is already deleted, so just proceed
       onAccountDeleted();
       onSuccess('Account deleted successfully.');
+    }
+  };
+
+  // Email threshold handlers
+  const handleAddThreshold = () => {
+    const value = parseInt(thresholdInput.trim());
+    if (!isNaN(value) && value > 0 && !defaultThresholds.includes(value)) {
+      const newThresholds = [...defaultThresholds, value].sort((a, b) => b - a);
+      setDefaultThresholds(newThresholds);
+      setThresholdInput('');
+    }
+  };
+
+  const handleRemoveThreshold = (threshold: number) => {
+    setDefaultThresholds(defaultThresholds.filter(t => t !== threshold));
+  };
+
+  const handleSaveThresholds = async () => {
+    setIsSavingSettings(true);
+    try {
+      await updateUserSettings(user.uid, {
+        defaultEmailThresholds: defaultThresholds.length > 0 ? defaultThresholds : [10],
+      });
+      onSuccess('Email thresholds saved successfully.');
+    } catch (error) {
+      console.error('Error saving thresholds:', error);
+      onError('Error saving email thresholds. Please try again.');
+    } finally {
+      setIsSavingSettings(false);
     }
   };
 
@@ -578,6 +632,78 @@ export function AccountSettings({
                   )}
                 </div>
               </div>
+            </div>
+
+            {/* Email Thresholds */}
+            <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Email Reminder Thresholds</h3>
+              {isLoadingSettings ? (
+                <p className="text-sm text-gray-600 dark:text-gray-400">Loading settings...</p>
+              ) : (
+                <>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                    Set default days before run out date to receive email reminders. You can override these per prescription.
+                  </p>
+                  
+                  <div className="mb-4">
+                    <div className="flex gap-2 mb-3">
+                      <input
+                        type="number"
+                        min="1"
+                        value={thresholdInput}
+                        onChange={(e) => setThresholdInput(e.target.value)}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddThreshold();
+                          }
+                        }}
+                        placeholder="Days (e.g., 10)"
+                        className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                      <button
+                        onClick={handleAddThreshold}
+                        disabled={!thresholdInput.trim() || isNaN(parseInt(thresholdInput.trim()))}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        Add
+                      </button>
+                    </div>
+                    
+                    {defaultThresholds.length > 0 ? (
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {defaultThresholds.map((threshold) => (
+                          <div
+                            key={threshold}
+                            className="flex items-center gap-2 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded-lg"
+                          >
+                            <span className="text-sm font-medium">{threshold} days</span>
+                            <button
+                              onClick={() => handleRemoveThreshold(threshold)}
+                              className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200"
+                              aria-label={`Remove ${threshold} days threshold`}
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">No thresholds set. Default is 10 days.</p>
+                    )}
+                    
+                    <button
+                      onClick={handleSaveThresholds}
+                      disabled={isSavingSettings || defaultThresholds.length === 0}
+                      className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {isSavingSettings ? 'Saving...' : 'Save Default Thresholds'}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Two-Factor Authentication */}

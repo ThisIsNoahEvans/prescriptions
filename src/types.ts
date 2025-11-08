@@ -16,6 +16,7 @@ export interface Prescription {
   photoUrls?: string[]; // Array of Firebase Storage URLs for medication photos
   categoryId?: string; // Optional category ID
   notes?: string; // Optional notes
+  emailThresholds?: number[]; // Array of days before run out date to send email reminders (e.g., [10, 5])
   createdAt: Timestamp;
 }
 
