@@ -1,9 +1,10 @@
-import * as functions from 'firebase-functions';
+import * as scheduler from 'firebase-functions/v2/scheduler';
 import * as admin from 'firebase-admin';
 import { getFirestore } from 'firebase-admin/firestore';
 import { calculateSupplyInfo, PrescriptionData } from './utils/supplyCalculator';
 import { generateReorderEmailHTML, generateCombinedReorderEmailHTML } from './utils/emailService';
 import { normalizeDate, dateDiffInDays } from './utils/dateUtils';
+import sgMail from '@sendgrid/mail';
 
 admin.initializeApp()
 
@@ -12,44 +13,76 @@ const db = getFirestore("prescriptions")
 
 /**
  * Scheduled function that runs daily at 9 AM to check for prescriptions that need reordering
+ * 
+ * To set secrets, run:
+ * firebase functions:secrets:set SENDGRID_API_KEY
+ * firebase functions:secrets:set SENDGRID_FROM_EMAIL
  */
-export const checkReorderDates = functions.pubsub
-  .schedule('0 9 * * *') // Runs daily at 9:00 AM UTC
-  .timeZone('UTC')
-  .onRun(async () => {
+export const checkReorderDates = scheduler.onSchedule(
+  {
+    schedule: '0 9 * * *', // Runs daily at 9:00 AM UTC
+    timeZone: 'UTC',
+    secrets: ['SENDGRID_API_KEY', 'SENDGRID_FROM_EMAIL'],
+  },
+  async () => {
+    // Initialize SendGrid with secret value
+    // Secrets are automatically available in process.env when declared in secrets array
+    const sendgridApiKey = process.env.SENDGRID_API_KEY;
+    if (!sendgridApiKey) {
+      throw new Error('SENDGRID_API_KEY secret is not set');
+    }
+    sgMail.setApiKey(sendgridApiKey);
     console.log('Starting reorder date check...');
     const today = normalizeDate(new Date());
 
     try {
-      // Get all users from the prescriptions database
-      const usersSnapshot = await db
-        .collection('users')
+      // Use collection group query to find all prescriptions across all users
+      // This works even if user documents don't exist (only subcollections exist)
+      console.log('Querying prescriptions collection group...');
+      const prescriptionsGroupSnapshot = await db
+        .collectionGroup('prescriptions')
         .get();
 
-      if (usersSnapshot.empty) {
+      console.log(`Found ${prescriptionsGroupSnapshot.size} prescriptions total`);
+
+      if (prescriptionsGroupSnapshot.empty) {
+        console.log('No prescriptions found');
+        return;
+      }
+
+      // Extract unique user IDs from prescription paths
+      // Path format: users/{userId}/prescriptions/{prescriptionId}
+      const userIds = new Set<string>();
+      for (const doc of prescriptionsGroupSnapshot.docs) {
+        const pathParts = doc.ref.path.split('/');
+        // Path should be: users/{userId}/prescriptions/{prescriptionId}
+        if (pathParts.length >= 2 && pathParts[0] === 'users') {
+          userIds.add(pathParts[1]);
+        }
+      }
+
+      console.log(`Found ${userIds.size} unique users with prescriptions`);
+
+      if (userIds.size === 0) {
         console.log('No users found');
-        return null;
+        return;
       }
 
       let emailsSent = 0;
       let errors = 0;
 
       // Process each user
-      for (const userDoc of usersSnapshot.docs) {
-        const userId = userDoc.id;
-        const userData = userDoc.data();
-
-        // Get user's email (from auth or user document)
+      for (const userId of userIds) {
+        // Get user's email and display name from Auth
         let userEmail: string | null = null;
+        let userName: string | null = null;
 
         try {
-          // Try to get email from auth
           const userRecord = await admin.auth().getUser(userId);
           userEmail = userRecord.email || null;
+          userName = userRecord.displayName || userRecord.email?.split('@')[0] || null;
         } catch (error) {
           console.error(`Error getting user ${userId} from auth:`, error);
-          // Try to get email from user document
-          userEmail = userData.email || null;
         }
 
         if (!userEmail) {
@@ -99,8 +132,8 @@ export const checkReorderDates = functions.pubsub
         }
 
         // Send email if there are prescriptions needing reorder
-        // Use Firestore-send-email extension by adding document to 'mail' collection
         if (prescriptionsNeedingReorder.length > 0) {
+          console.log(`Sending email to ${userEmail} for ${prescriptionsNeedingReorder.length} prescription(s)`);
           try {
             let subject: string;
             let html: string;
@@ -110,6 +143,7 @@ export const checkReorderDates = functions.pubsub
               const item = prescriptionsNeedingReorder[0];
               subject = `Reorder Reminder: ${item.prescription.name}`;
               html = generateReorderEmailHTML(
+                userName || 'there',
                 item.prescription.name,
                 item.reorderDate,
                 item.runOutDate,
@@ -118,30 +152,36 @@ export const checkReorderDates = functions.pubsub
             } else {
               // Multiple prescriptions - create combined email
               subject = `Reorder Reminders: ${prescriptionsNeedingReorder.length} Prescription(s)`;
-              html = generateCombinedReorderEmailHTML(prescriptionsNeedingReorder);
+              html = generateCombinedReorderEmailHTML(
+                userName || 'there',
+                prescriptionsNeedingReorder
+              );
             }
 
-            // Add email document to Firestore 'mail' collection
-            // The firestore-send-email extension will automatically send it
-            await db.collection('mail').add({
+            
+            const msg = {
               to: userEmail,
-              message: {
-                subject: subject,
-                html: html,
-              },
-            });
+              from: 'noreply@itsnoahevans.co.uk', // Change to your verified sender
+              subject: subject,
+              text: subject, // Plain text version (you can enhance this)
+              html: html,
+            };
+
+            await sgMail.send(msg);
 
             emailsSent++;
-            console.log(`Email queued for ${userEmail} for ${prescriptionsNeedingReorder.length} prescription(s)`);
+            console.log(`Email sent to ${userEmail} for ${prescriptionsNeedingReorder.length} prescription(s)`);
           } catch (error) {
             errors++;
-            console.error(`Error queuing email for ${userEmail}:`, error);
+            console.error(`Error sending email to ${userEmail}:`, error);
+            if (error instanceof Error) {
+              console.error('Error details:', error.message);
+            }
           }
         }
       }
 
       console.log(`Reorder check completed. Emails sent: ${emailsSent}, Errors: ${errors}`);
-      return null;
     } catch (error) {
       console.error('Error in checkReorderDates function:', error);
       throw error;
