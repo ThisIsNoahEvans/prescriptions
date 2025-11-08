@@ -21,12 +21,34 @@ export const checkReorderDates = functions.pubsub
     const today = normalizeDate(new Date());
 
     try {
-      // Get all users from the prescriptions database
-      const usersSnapshot = await db
-        .collection('users')
+      // Use collection group query to find all prescriptions across all users
+      // This works even if user documents don't exist (only subcollections exist)
+      console.log('Querying prescriptions collection group...');
+      const prescriptionsGroupSnapshot = await db
+        .collectionGroup('prescriptions')
         .get();
 
-      if (usersSnapshot.empty) {
+      console.log(`Found ${prescriptionsGroupSnapshot.size} prescriptions total`);
+
+      if (prescriptionsGroupSnapshot.empty) {
+        console.log('No prescriptions found');
+        return null;
+      }
+
+      // Extract unique user IDs from prescription paths
+      // Path format: users/{userId}/prescriptions/{prescriptionId}
+      const userIds = new Set<string>();
+      for (const doc of prescriptionsGroupSnapshot.docs) {
+        const pathParts = doc.ref.path.split('/');
+        // Path should be: users/{userId}/prescriptions/{prescriptionId}
+        if (pathParts.length >= 2 && pathParts[0] === 'users') {
+          userIds.add(pathParts[1]);
+        }
+      }
+
+      console.log(`Found ${userIds.size} unique users with prescriptions`);
+
+      if (userIds.size === 0) {
         console.log('No users found');
         return null;
       }
@@ -35,21 +57,15 @@ export const checkReorderDates = functions.pubsub
       let errors = 0;
 
       // Process each user
-      for (const userDoc of usersSnapshot.docs) {
-        const userId = userDoc.id;
-        const userData = userDoc.data();
-
-        // Get user's email (from auth or user document)
+      for (const userId of userIds) {
+        // Get user's email from Auth
         let userEmail: string | null = null;
 
         try {
-          // Try to get email from auth
           const userRecord = await admin.auth().getUser(userId);
           userEmail = userRecord.email || null;
         } catch (error) {
           console.error(`Error getting user ${userId} from auth:`, error);
-          // Try to get email from user document
-          userEmail = userData.email || null;
         }
 
         if (!userEmail) {
