@@ -13,6 +13,7 @@ export interface PrescriptionData {
     date: FirebaseFirestore.Timestamp;
     quantity: number;
   }>;
+  emailThresholds?: number[]; // Array of days before run out date
 }
 
 export interface SupplyInfo {

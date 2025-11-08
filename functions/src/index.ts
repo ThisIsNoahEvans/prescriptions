@@ -2,8 +2,8 @@ import * as scheduler from 'firebase-functions/v2/scheduler';
 import * as admin from 'firebase-admin';
 import { getFirestore } from 'firebase-admin/firestore';
 import { calculateSupplyInfo, PrescriptionData } from './utils/supplyCalculator';
-import { generateReorderEmailHTML, generateCombinedReorderEmailHTML } from './utils/emailService';
-import { normalizeDate, dateDiffInDays } from './utils/dateUtils';
+import { generateReorderEmailHTML, generateCombinedReorderEmailHTML, generateRunOutDayReminderHTML } from './utils/emailService';
+import { normalizeDate, dateDiffInDays, addDays } from './utils/dateUtils';
 import sgMail from '@sendgrid/mail';
 
 admin.initializeApp()
@@ -90,6 +90,25 @@ export const checkReorderDates = scheduler.onSchedule(
           continue;
         }
 
+        // Get user settings for default thresholds
+        let defaultThresholds: number[] = [10]; // Default to 10 days
+        try {
+          const settingsDoc = await db
+            .collection('users')
+            .doc(userId)
+            .collection('settings')
+            .doc('email')
+            .get();
+          if (settingsDoc.exists) {
+            const settings = settingsDoc.data();
+            if (settings?.defaultEmailThresholds && Array.isArray(settings.defaultEmailThresholds)) {
+              defaultThresholds = settings.defaultEmailThresholds;
+            }
+          }
+        } catch (error) {
+          console.error(`Error getting user settings for ${userId}:`, error);
+        }
+
         // Get all prescriptions for this user
         const prescriptionsSnapshot = await db
           .collection('users')
@@ -103,7 +122,13 @@ export const checkReorderDates = scheduler.onSchedule(
 
         const prescriptionsNeedingReorder: Array<{
           prescription: PrescriptionData;
-          reorderDate: Date;
+          runOutDate: Date;
+          currentSupply: number;
+          thresholdDays: number; // Which threshold triggered this email
+        }> = [];
+
+        const prescriptionsRunOutToday: Array<{
+          prescription: PrescriptionData;
           runOutDate: Date;
           currentSupply: number;
         }> = [];
@@ -113,21 +138,76 @@ export const checkReorderDates = scheduler.onSchedule(
           const prescriptionData = prescriptionDoc.data() as PrescriptionData;
           const supplyInfo = calculateSupplyInfo(prescriptionData);
 
-          // Check if reorder date is today or in the past (and not already run out)
-          const daysUntilReorder = dateDiffInDays(supplyInfo.reorderDate, today);
-          const daysUntilRunOut = dateDiffInDays(supplyInfo.runOutDate, today);
+          // Normalize run out date for comparison
+          const normalizedRunOutDate = normalizeDate(supplyInfo.runOutDate);
+          
+          // Check if run out date is today (compare normalized dates directly)
+          const runOutDateStr = normalizedRunOutDate.toISOString().split('T')[0];
+          const todayStr = today.toISOString().split('T')[0];
+          const isRunOutToday = runOutDateStr === todayStr;
+          
+          // Check if run out date is in the past (more than today)
+          const isRunOutInPast = normalizedRunOutDate < today;
 
-          // Send email if:
-          // 1. Reorder date is today or in the past
-          // 2. Run out date is in the future (not already run out)
-          // 3. Current supply is positive
-          if (daysUntilReorder <= 0 && daysUntilRunOut > 0 && supplyInfo.currentSupply > 0) {
-            prescriptionsNeedingReorder.push({
-              prescription: prescriptionData,
-              reorderDate: supplyInfo.reorderDate,
-              runOutDate: supplyInfo.runOutDate,
-              currentSupply: supplyInfo.currentSupply,
+          // Check if run out date is today and no delivery logged
+          // We check this BEFORE checking supply, because even if supply is 0,
+          // the user might have received a delivery but not logged it yet
+          if (isRunOutToday) {
+            // Check if there's a delivery logged today
+            const hasDeliveryToday = prescriptionData.supplyLog.some((log) => {
+              const logDate = normalizeDate(log.date.toDate());
+              const logDateStr = logDate.toISOString().split('T')[0];
+              return logDateStr === todayStr;
             });
+
+            if (!hasDeliveryToday) {
+              prescriptionsRunOutToday.push({
+                prescription: prescriptionData,
+                runOutDate: supplyInfo.runOutDate,
+                currentSupply: supplyInfo.currentSupply,
+              });
+            }
+            continue; // Don't check thresholds if running out today
+          }
+
+          // Skip if already run out (in the past) or no supply
+          if (isRunOutInPast || supplyInfo.currentSupply <= 0) {
+            continue;
+          }
+
+          // Get thresholds for this prescription (custom or default)
+          const thresholds = prescriptionData.emailThresholds && prescriptionData.emailThresholds.length > 0
+            ? prescriptionData.emailThresholds
+            : defaultThresholds;
+
+          // Check each threshold
+          for (const thresholdDays of thresholds) {
+            const thresholdDate = addDays(supplyInfo.runOutDate, -thresholdDays);
+            const daysUntilThreshold = dateDiffInDays(thresholdDate, today);
+
+            // Send email if threshold date is today or in the past
+            if (daysUntilThreshold <= 0) {
+              // Check if we already have this prescription in the list
+              const existingIndex = prescriptionsNeedingReorder.findIndex(
+                (p) => p.prescription.id === prescriptionData.id
+              );
+
+              if (existingIndex === -1) {
+                // Add new prescription
+                prescriptionsNeedingReorder.push({
+                  prescription: prescriptionData,
+                  runOutDate: supplyInfo.runOutDate,
+                  currentSupply: supplyInfo.currentSupply,
+                  thresholdDays,
+                });
+              } else {
+                // Update to use the earliest threshold (most urgent)
+                if (thresholdDays < prescriptionsNeedingReorder[existingIndex].thresholdDays) {
+                  prescriptionsNeedingReorder[existingIndex].thresholdDays = thresholdDays;
+                }
+              }
+              break; // Only send one email per prescription per day, use the most urgent threshold
+            }
           }
         }
 
@@ -145,9 +225,9 @@ export const checkReorderDates = scheduler.onSchedule(
               html = generateReorderEmailHTML(
                 userName || 'there',
                 item.prescription.name,
-                item.reorderDate,
                 item.runOutDate,
-                item.currentSupply
+                item.currentSupply,
+                item.thresholdDays
               );
             } else {
               // Multiple prescriptions - create combined email
@@ -174,6 +254,40 @@ export const checkReorderDates = scheduler.onSchedule(
           } catch (error) {
             errors++;
             console.error(`Error sending email to ${userEmail}:`, error);
+            if (error instanceof Error) {
+              console.error('Error details:', error.message);
+            }
+          }
+        }
+
+        // Send run-out day reminder email if there are prescriptions running out today
+        if (prescriptionsRunOutToday.length > 0) {
+          console.log(`Sending run-out day reminder to ${userEmail} for ${prescriptionsRunOutToday.length} prescription(s)`);
+          try {
+            const subject = prescriptionsRunOutToday.length === 1
+              ? `Run Out Day Reminder: ${prescriptionsRunOutToday[0].prescription.name}`
+              : `Run Out Day Reminders: ${prescriptionsRunOutToday.length} Prescription(s)`;
+            
+            const html = generateRunOutDayReminderHTML(
+              userName || 'there',
+              prescriptionsRunOutToday
+            );
+
+            const msg = {
+              to: userEmail,
+              from: 'noreply@itsnoahevans.co.uk',
+              subject: subject,
+              text: subject,
+              html: html,
+            };
+
+            await sgMail.send(msg);
+
+            emailsSent++;
+            console.log(`Run-out day reminder sent to ${userEmail} for ${prescriptionsRunOutToday.length} prescription(s)`);
+          } catch (error) {
+            errors++;
+            console.error(`Error sending run-out day reminder to ${userEmail}:`, error);
             if (error instanceof Error) {
               console.error('Error details:', error.message);
             }
