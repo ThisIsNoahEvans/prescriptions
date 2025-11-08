@@ -71,13 +71,9 @@ export async function deletePrescriptionPhoto(photoUrl: string): Promise<void> {
 
 /**
  * Delete all photos for a prescription
- * @param userId - The user's ID
- * @param prescriptionId - The prescription's ID
  * @param photoUrls - Array of photo URLs to delete
  */
 export async function deleteAllPrescriptionPhotos(
-  userId: string,
-  prescriptionId: string,
   photoUrls: string[]
 ): Promise<void> {
   const deletePromises = photoUrls.map((url) => deletePrescriptionPhoto(url));

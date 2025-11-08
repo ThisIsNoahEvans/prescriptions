@@ -4,14 +4,12 @@ interface DeleteMFAConfirmationModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
-  onError: (message: string) => void;
 }
 
 export function DeleteMFAConfirmationModal({
   isOpen,
   onClose,
   onConfirm,
-  onError,
 }: DeleteMFAConfirmationModalProps) {
   const handleConfirm = () => {
     onConfirm();

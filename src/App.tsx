@@ -16,8 +16,11 @@ import { SignOutConfirmationModal } from './components/SignOutConfirmationModal'
 import { CategoryManager } from './components/CategoryManager';
 import { Toast } from './components/Toast';
 import { LoadingScreen } from './components/LoadingScreen';
+import { useDarkMode } from './hooks/useDarkMode';
 
 function App() {
+  // Initialize dark mode detection
+  useDarkMode();
   const [user, setUser] = useState<User | null>(null);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -161,6 +164,7 @@ function App() {
         className={`min-h-screen bg-gray-100 dark:bg-gray-900 transition-all duration-500 ${
           showLoadingScreen ? 'opacity-0 scale-[1.15]' : 'opacity-100 scale-100'
         }`}
+        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
       <div className="container mx-auto p-4 sm:p-6 md:p-8 max-w-4xl">
         <header className="mb-6 sm:mb-8">
