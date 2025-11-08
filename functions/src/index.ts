@@ -73,12 +73,14 @@ export const checkReorderDates = scheduler.onSchedule(
 
       // Process each user
       for (const userId of userIds) {
-        // Get user's email from Auth
+        // Get user's email and display name from Auth
         let userEmail: string | null = null;
+        let userName: string | null = null;
 
         try {
           const userRecord = await admin.auth().getUser(userId);
           userEmail = userRecord.email || null;
+          userName = userRecord.displayName || userRecord.email?.split('@')[0] || null;
         } catch (error) {
           console.error(`Error getting user ${userId} from auth:`, error);
         }
@@ -141,6 +143,7 @@ export const checkReorderDates = scheduler.onSchedule(
               const item = prescriptionsNeedingReorder[0];
               subject = `Reorder Reminder: ${item.prescription.name}`;
               html = generateReorderEmailHTML(
+                userName || 'there',
                 item.prescription.name,
                 item.reorderDate,
                 item.runOutDate,
@@ -149,7 +152,10 @@ export const checkReorderDates = scheduler.onSchedule(
             } else {
               // Multiple prescriptions - create combined email
               subject = `Reorder Reminders: ${prescriptionsNeedingReorder.length} Prescription(s)`;
-              html = generateCombinedReorderEmailHTML(prescriptionsNeedingReorder);
+              html = generateCombinedReorderEmailHTML(
+                userName || 'there',
+                prescriptionsNeedingReorder
+              );
             }
 
             
