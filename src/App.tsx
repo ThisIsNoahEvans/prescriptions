@@ -293,7 +293,15 @@ function App() {
             {/* Mobile Tab Bar - rendered via portal to avoid transform issues */}
             {user && typeof document !== 'undefined' && document.body && (
               createPortal(
-                <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg z-50" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+                <div 
+                  className="lg:hidden fixed bottom-0 left-0 right-0 border-t border-gray-200 dark:border-gray-700 shadow-lg z-50 backdrop-blur-md" 
+                  style={{ 
+                    paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+                    backgroundColor: document.documentElement.classList.contains('dark') 
+                      ? 'rgb(31, 41, 55)' // dark:bg-gray-800 fully opaque
+                      : 'rgb(255, 255, 255)', // bg-white fully opaque
+                  }}
+                >
                   <div className="flex">
                     <button
                       onClick={() => setActiveView('prescriptions')}
