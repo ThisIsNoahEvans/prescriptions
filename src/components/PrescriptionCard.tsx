@@ -61,28 +61,28 @@ export function PrescriptionCard({
 
   return (
     <>
-      <div className="bg-white dark:bg-gray-800 shadow-lg rounded-xl p-6 border border-gray-200 dark:border-gray-700 transition-shadow hover:shadow-xl">
+      <div className="bg-white dark:bg-gray-800 shadow-lg rounded-xl p-6 border border-gray-200 dark:border-gray-700 transition-shadow hover:shadow-xl flex flex-col h-full">
         <div className="flex flex-col md:flex-row justify-between md:items-center mb-4">
           <div className="flex items-center gap-3 flex-wrap">
-            <h3 className="text-3xl font-bold text-gray-900 dark:text-white">{prescription.name}</h3>
+            <h3 className="text-3xl font-bold text-gray-900 dark:text-white break-words">{prescription.name}</h3>
             {category && (
-              <div className="flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-700">
+              <div className="flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-700 flex-shrink-0">
                 <div
                   className="w-3 h-3 rounded-full flex-shrink-0"
                   style={{ backgroundColor: category.color }}
                 />
-                <span className="text-gray-700 dark:text-gray-300">{category.name}</span>
+                <span className="text-gray-700 dark:text-gray-300 whitespace-nowrap">{category.name}</span>
               </div>
             )}
             {hasPhotos && (
               <button
                 onClick={() => setIsPhotoGalleryOpen(true)}
-                className="flex items-center gap-1 px-2 py-1 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
+                className="flex items-center gap-1 px-2 py-1 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors flex-shrink-0"
                 aria-label="View photos"
                 title={`View ${prescription.photoUrls?.length || 0} photo(s)`}
               >
                 <svg
-                  className="w-5 h-5"
+                  className="w-5 h-5 flex-shrink-0"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -100,14 +100,14 @@ export function PrescriptionCard({
               </button>
             )}
           </div>
-          <span className="text-lg font-semibold text-blue-700 dark:text-blue-400 mt-2 md:mt-0">
+          <span className="text-lg font-semibold text-blue-700 dark:text-blue-400 mt-2 md:mt-0 flex-shrink-0 whitespace-nowrap">
             ~{Math.round(supplyInfo.currentSupply)} tablets left
           </span>
         </div>
 
         {/* Notes section - show above dates */}
         {hasNotes && (
-          <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+          <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 flex-shrink-0">
             <div className="flex items-start gap-2">
               <svg
                 className="w-5 h-5 text-gray-500 dark:text-gray-400 flex-shrink-0 mt-0.5"
@@ -139,42 +139,42 @@ export function PrescriptionCard({
           </div>
         )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
-          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Re-order Date</p>
-          <p className={`text-xl ${reorderColor}`}>
-            {formatDisplayDate(supplyInfo.reorderDate)}{' '}
-            <span className={`text-sm ${reorderColor}`}>{reorderLabel}</span>
-          </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 flex-shrink-0">
+          <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Re-order Date</p>
+            <p className={`text-xl ${reorderColor} break-words`}>
+              {formatDisplayDate(supplyInfo.reorderDate)}{' '}
+              <span className={`text-sm ${reorderColor}`}>{reorderLabel}</span>
+            </p>
+          </div>
+          <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Est. Run Out Date</p>
+            <p className="text-xl text-gray-700 dark:text-gray-300 break-words">
+              {formatDisplayDate(supplyInfo.runOutDate)} ({supplyInfo.daysRemaining} days left)
+            </p>
+          </div>
         </div>
-        <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
-          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Est. Run Out Date</p>
-          <p className="text-xl text-gray-700 dark:text-gray-300">
-            {formatDisplayDate(supplyInfo.runOutDate)} ({supplyInfo.daysRemaining} days left)
-          </p>
-        </div>
-      </div>
 
-      <div className="flex flex-col sm:flex-row gap-4">
-        <button
-          onClick={() => onLogDelivery(prescription)}
-          className="log-delivery-btn flex-1 bg-green-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-700 shadow-md transition-all duration-200"
-        >
-          Log New Delivery
-        </button>
-        <button
-          onClick={() => onViewLogs(prescription)}
-          className="view-logs-btn flex-1 bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 shadow-md transition-all duration-200"
-        >
-          View Logs ({prescription.supplyLog.length + 1})
-        </button>
-        <button
-          onClick={handleDelete}
-          className="delete-btn flex-1 bg-red-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-red-700 shadow-md transition-all duration-200"
-        >
-          Delete
-        </button>
-      </div>
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-auto">
+          <button
+            onClick={() => onLogDelivery(prescription)}
+            className="log-delivery-btn flex-1 bg-green-600 text-white font-bold py-3 px-4 sm:px-6 rounded-lg hover:bg-green-700 shadow-md transition-all duration-200 text-sm sm:text-base whitespace-nowrap min-w-0 overflow-hidden text-ellipsis"
+          >
+            Log New Delivery
+          </button>
+          <button
+            onClick={() => onViewLogs(prescription)}
+            className="view-logs-btn flex-1 bg-blue-600 text-white font-bold py-3 px-4 sm:px-6 rounded-lg hover:bg-blue-700 shadow-md transition-all duration-200 text-sm sm:text-base whitespace-nowrap min-w-0 overflow-hidden text-ellipsis"
+          >
+            View Logs ({prescription.supplyLog.length + 1})
+          </button>
+          <button
+            onClick={handleDelete}
+            className="delete-btn flex-1 bg-red-600 text-white font-bold py-3 px-4 sm:px-6 rounded-lg hover:bg-red-700 shadow-md transition-all duration-200 text-sm sm:text-base whitespace-nowrap min-w-0 overflow-hidden text-ellipsis"
+          >
+            Delete
+          </button>
+        </div>
       </div>
 
       {hasPhotos && (

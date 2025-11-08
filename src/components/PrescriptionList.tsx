@@ -59,7 +59,7 @@ export function PrescriptionList({
   });
 
   return (
-    <div className="space-y-6">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 xl:gap-8 items-stretch">
       {sortedPrescriptions.map((prescription) => {
         const supplyInfo = calculateSupplyInfo(prescription);
         return (

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { User } from 'firebase/auth';
 import { initializeFirebase } from './firebase/config';
 import { onAuthStateChange, signOutAuth } from './services/authService';
@@ -17,6 +18,7 @@ import { CategoryManager } from './components/CategoryManager';
 import { Toast } from './components/Toast';
 import { LoadingScreen } from './components/LoadingScreen';
 import { useDarkMode } from './hooks/useDarkMode';
+import { UserMenu } from './components/UserMenu';
 
 function App() {
   // Initialize dark mode detection
@@ -38,6 +40,7 @@ function App() {
   const [showAddPrescriptionForm, setShowAddPrescriptionForm] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [isToastError, setIsToastError] = useState(false);
+  const [activeView, setActiveView] = useState<'prescriptions' | 'calendar'>('prescriptions');
 
   useEffect(() => {
     // Initialize Firebase
@@ -166,10 +169,10 @@ function App() {
         }`}
         style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
-      <div className="container mx-auto p-4 sm:p-6 md:p-8 max-w-4xl">
+      <div className="w-full px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 py-6 sm:py-8 md:py-10 lg:py-12">
         <header className="mb-6 sm:mb-8">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-4">
-            <div className="flex-1">
+          <div className="flex flex-row justify-between items-start gap-4 mb-4">
+            <div className="flex-1 min-w-0">
               <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-blue-800 dark:text-blue-400 mb-1 sm:mb-2">
                 My Prescription Tracker
               </h1>
@@ -178,30 +181,13 @@ function App() {
               </p>
             </div>
             {user && (
-              <div className="flex flex-col sm:items-end gap-2">
-                <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 break-all sm:break-normal">
-                  {user.displayName || user.email}
-                </div>
-                <div className="flex flex-wrap gap-2 sm:gap-3">
-                  <button
-                    onClick={() => setShowCategoryManager(true)}
-                    className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 underline"
-                  >
-                    Categories
-                  </button>
-                  <button
-                    onClick={() => setShowAccountSettings(true)}
-                    className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 underline"
-                  >
-                    Account
-                  </button>
-                  <button
-                    onClick={handleSignOut}
-                    className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 underline"
-                  >
-                    Sign Out
-                  </button>
-                </div>
+              <div className="flex-shrink-0">
+                <UserMenu
+                  user={user}
+                  onShowCategories={() => setShowCategoryManager(true)}
+                  onShowAccount={() => setShowAccountSettings(true)}
+                  onSignOut={handleSignOut}
+                />
               </div>
             )}
           </div>
@@ -215,7 +201,7 @@ function App() {
         ) : (
           <>
 
-            <div className="mb-6 sm:mb-8">
+            <div className="mb-6 sm:mb-8 lg:mb-6">
               <button
                 onClick={() => setShowAddPrescriptionForm(true)}
                 className="w-full sm:w-auto bg-blue-600 dark:bg-blue-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 dark:hover:bg-blue-600 transition-all duration-200 flex items-center justify-center gap-2"
@@ -255,27 +241,92 @@ function App() {
               />
             )}
 
-            <div className="space-y-6 sm:space-y-8">
-              <div>
-                <h2 className="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white mb-4 sm:mb-6">
-                  My Medications
-                </h2>
-                <PrescriptionList
-                  userId={user.uid}
-                  prescriptions={prescriptions}
-                  isLoading={isLoadingPrescriptions}
-                  onLogDelivery={handleLogDelivery}
-                  onViewLogs={handleViewLogs}
-                  onDelete={handleDeletePrescription}
-                />
+            {/* Desktop Layout: Prescriptions on left, Calendar on right (sticky) */}
+            <div className="hidden lg:grid lg:grid-cols-[1.5fr_1fr] xl:grid-cols-[2fr_1fr] lg:gap-8 xl:gap-12 lg:items-start">
+              <div className="space-y-6">
+                <div>
+                  <PrescriptionList
+                    userId={user.uid}
+                    prescriptions={prescriptions}
+                    isLoading={isLoadingPrescriptions}
+                    onLogDelivery={handleLogDelivery}
+                    onViewLogs={handleViewLogs}
+                    onDelete={handleDeletePrescription}
+                  />
+                </div>
               </div>
 
               {prescriptions.length > 0 && (
+                <div className="sticky top-4">
+                  <CalendarView prescriptions={prescriptions} />
+                </div>
+              )}
+            </div>
+
+            {/* Mobile Layout: Tab bar at bottom to switch views */}
+            <div className="lg:hidden pb-20">
+              {activeView === 'prescriptions' && (
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white mb-4 sm:mb-6">
+                      My Medications
+                    </h2>
+                    <PrescriptionList
+                      userId={user.uid}
+                      prescriptions={prescriptions}
+                      isLoading={isLoadingPrescriptions}
+                      onLogDelivery={handleLogDelivery}
+                      onViewLogs={handleViewLogs}
+                      onDelete={handleDeletePrescription}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {activeView === 'calendar' && prescriptions.length > 0 && (
                 <div>
                   <CalendarView prescriptions={prescriptions} />
                 </div>
               )}
             </div>
+
+            {/* Mobile Tab Bar - rendered via portal to avoid transform issues */}
+            {user && typeof document !== 'undefined' && document.body && (
+              createPortal(
+                <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg z-50" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+                  <div className="flex">
+                    <button
+                      onClick={() => setActiveView('prescriptions')}
+                      className={`flex-1 flex flex-col items-center justify-center py-3 px-4 transition-colors ${
+                        activeView === 'prescriptions'
+                          ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                          : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                      }`}
+                    >
+                      <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                      </svg>
+                      <span className="text-xs font-medium">Prescriptions</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveView('calendar')}
+                      disabled={prescriptions.length === 0}
+                      className={`flex-1 flex flex-col items-center justify-center py-3 px-4 transition-colors ${
+                        activeView === 'calendar'
+                          ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                          : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                      } ${prescriptions.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span className="text-xs font-medium">Calendar</span>
+                    </button>
+                  </div>
+                </div>,
+                document.body
+              )
+            )}
           </>
         )}
 
