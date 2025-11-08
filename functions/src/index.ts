@@ -1,9 +1,10 @@
-import * as functions from 'firebase-functions';
+import * as scheduler from 'firebase-functions/v2/scheduler';
 import * as admin from 'firebase-admin';
 import { getFirestore } from 'firebase-admin/firestore';
 import { calculateSupplyInfo, PrescriptionData } from './utils/supplyCalculator';
 import { generateReorderEmailHTML, generateCombinedReorderEmailHTML } from './utils/emailService';
 import { normalizeDate, dateDiffInDays } from './utils/dateUtils';
+import sgMail from '@sendgrid/mail';
 
 admin.initializeApp()
 
@@ -12,11 +13,25 @@ const db = getFirestore("prescriptions")
 
 /**
  * Scheduled function that runs daily at 9 AM to check for prescriptions that need reordering
+ * 
+ * To set secrets, run:
+ * firebase functions:secrets:set SENDGRID_API_KEY
+ * firebase functions:secrets:set SENDGRID_FROM_EMAIL
  */
-export const checkReorderDates = functions.pubsub
-  .schedule('0 9 * * *') // Runs daily at 9:00 AM UTC
-  .timeZone('UTC')
-  .onRun(async () => {
+export const checkReorderDates = scheduler.onSchedule(
+  {
+    schedule: '0 9 * * *', // Runs daily at 9:00 AM UTC
+    timeZone: 'UTC',
+    secrets: ['SENDGRID_API_KEY', 'SENDGRID_FROM_EMAIL'],
+  },
+  async () => {
+    // Initialize SendGrid with secret value
+    // Secrets are automatically available in process.env when declared in secrets array
+    const sendgridApiKey = process.env.SENDGRID_API_KEY;
+    if (!sendgridApiKey) {
+      throw new Error('SENDGRID_API_KEY secret is not set');
+    }
+    sgMail.setApiKey(sendgridApiKey);
     console.log('Starting reorder date check...');
     const today = normalizeDate(new Date());
 
@@ -32,7 +47,7 @@ export const checkReorderDates = functions.pubsub
 
       if (prescriptionsGroupSnapshot.empty) {
         console.log('No prescriptions found');
-        return null;
+        return;
       }
 
       // Extract unique user IDs from prescription paths
@@ -50,7 +65,7 @@ export const checkReorderDates = functions.pubsub
 
       if (userIds.size === 0) {
         console.log('No users found');
-        return null;
+        return;
       }
 
       let emailsSent = 0;
@@ -115,8 +130,8 @@ export const checkReorderDates = functions.pubsub
         }
 
         // Send email if there are prescriptions needing reorder
-        // Use Firestore-send-email extension by adding document to 'mail' collection
         if (prescriptionsNeedingReorder.length > 0) {
+          console.log(`Sending email to ${userEmail} for ${prescriptionsNeedingReorder.length} prescription(s)`);
           try {
             let subject: string;
             let html: string;
@@ -137,27 +152,30 @@ export const checkReorderDates = functions.pubsub
               html = generateCombinedReorderEmailHTML(prescriptionsNeedingReorder);
             }
 
-            // Add email document to Firestore 'mail' collection
-            // The firestore-send-email extension will automatically send it
-            await db.collection('mail').add({
+            
+            const msg = {
               to: userEmail,
-              message: {
-                subject: subject,
-                html: html,
-              },
-            });
+              from: 'noreply@itsnoahevans.co.uk', // Change to your verified sender
+              subject: subject,
+              text: subject, // Plain text version (you can enhance this)
+              html: html,
+            };
+
+            await sgMail.send(msg);
 
             emailsSent++;
-            console.log(`Email queued for ${userEmail} for ${prescriptionsNeedingReorder.length} prescription(s)`);
+            console.log(`Email sent to ${userEmail} for ${prescriptionsNeedingReorder.length} prescription(s)`);
           } catch (error) {
             errors++;
-            console.error(`Error queuing email for ${userEmail}:`, error);
+            console.error(`Error sending email to ${userEmail}:`, error);
+            if (error instanceof Error) {
+              console.error('Error details:', error.message);
+            }
           }
         }
       }
 
       console.log(`Reorder check completed. Emails sent: ${emailsSent}, Errors: ${errors}`);
-      return null;
     } catch (error) {
       console.error('Error in checkReorderDates function:', error);
       throw error;
