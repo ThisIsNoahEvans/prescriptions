@@ -36,45 +36,52 @@ export function LoadingScreen({ isLoading, onLoaded }: LoadingScreenProps) {
     };
   }, [hasPlayedOnce]);
 
-  // When loading completes and we've played at least once, fade out
+  // When loading completes, wait for logo to be at peak (largest) then start shrink
   useEffect(() => {
-    if (!isLoading && hasPlayedOnce && !hasCalledOnLoadedRef.current) {
-      // Start fade out
-      setIsFadingOut(true);
-      // Call onLoaded after fade animation completes
+    if (!isLoading && !hasCalledOnLoadedRef.current) {
+      // Wait for the logo to reach its peak (scale 1.15) before starting shrink
+      // The pulse animation is 2s, so we need to wait for the right moment
+      const checkPeak = setInterval(() => {
+        const svg = svgRef.current;
+        if (svg) {
+          // Check if we're at or past the peak (around 1s into the 2s cycle, or at 50% of animation)
+          // We'll trigger the shrink when we're at the peak or just starting to shrink
+          const now = Date.now();
+          const cycleTime = 2000; // 2 seconds per cycle
+          const timeInCycle = (now % cycleTime) / cycleTime;
+          
+          // If we're at the peak (around 50% of cycle, which is scale 1.15) or just past it (starting to shrink)
+          // This allows us to catch it on the first shrink if ready
+          if (timeInCycle >= 0.45 && timeInCycle <= 0.65) {
+            clearInterval(checkPeak);
+            setIsFadingOut(true);
+            // Call onLoaded immediately so app can start scaling in during the shrink
+            if (!hasCalledOnLoadedRef.current) {
+              hasCalledOnLoadedRef.current = true;
+              onLoaded();
+            }
+          }
+        }
+      }, 16); // Check every ~16ms (60fps) for faster response
+
+      // Fallback: if we don't catch the peak within 1.5 seconds, just proceed
       setTimeout(() => {
+        clearInterval(checkPeak);
         if (!hasCalledOnLoadedRef.current) {
+          setIsFadingOut(true);
           hasCalledOnLoadedRef.current = true;
           onLoaded();
         }
-      }, 500); // Match fade duration
+      }, 1500); // Reduced from 2000ms to 1500ms for faster fallback
     }
-  }, [isLoading, hasPlayedOnce, onLoaded]);
+  }, [isLoading, onLoaded]);
 
-  // Ensure minimum play time - if loading finishes too quickly, wait for at least one cycle
+  // Track when animation has played at least one pulse (in or out)
   useEffect(() => {
     if (!isLoading && !hasPlayedOnce) {
-      // Loading finished but we haven't played once yet
-      // Wait a bit to ensure the animation plays at least one full cycle
-      const checkInterval = setInterval(() => {
-        if (animationCountRef.current >= 2 && !hasPlayedOnce) {
-          setHasPlayedOnce(true);
-          clearInterval(checkInterval);
-        }
-      }, 100); // Check every 100ms
-
-      // Fallback: ensure it plays at least one full cycle (2 seconds for in + out)
-      const fallbackTimer = setTimeout(() => {
-        if (!hasPlayedOnce) {
-          setHasPlayedOnce(true);
-        }
-        clearInterval(checkInterval);
-      }, 2000); // 2 seconds = 1 full pulse cycle (1s in + 1s out)
-
-      return () => {
-        clearInterval(checkInterval);
-        clearTimeout(fallbackTimer);
-      };
+      // Loading finished - mark as played once immediately so we can proceed
+      // We don't need to wait for a full cycle, just need to catch the peak
+      setHasPlayedOnce(true);
     }
   }, [isLoading, hasPlayedOnce]);
 
@@ -89,7 +96,9 @@ export function LoadingScreen({ isLoading, onLoaded }: LoadingScreenProps) {
           ref={svgRef}
           src={logoSvg}
           alt="Loading..."
-          className="w-32 h-32 sm:w-48 sm:h-48 md:w-64 md:h-64 object-contain loading-logo"
+          className={`w-32 h-32 sm:w-48 sm:h-48 md:w-64 md:h-64 object-contain loading-logo ${
+            isFadingOut ? 'shrink-out' : ''
+          }`}
         />
         <style>{`
           @keyframes pulse {
@@ -107,8 +116,24 @@ export function LoadingScreen({ isLoading, onLoaded }: LoadingScreenProps) {
             }
           }
           
+          @keyframes shrinkOut {
+            0% {
+              transform: scale(1.15);
+              opacity: 1;
+            }
+            100% {
+              transform: scale(0);
+              opacity: 0;
+            }
+          }
+          
           .loading-logo {
             animation: pulse 2s ease-in-out infinite;
+          }
+          
+          .loading-logo.shrink-out {
+            animation: shrinkOut 0.5s ease-in forwards !important;
+            animation-fill-mode: forwards;
           }
         `}</style>
       </div>

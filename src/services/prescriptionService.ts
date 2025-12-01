@@ -34,6 +34,7 @@ export async function addPrescription(
   const docRef = await addDoc(collectionRef, {
     ...prescription,
     supplyLog: [],
+    photoUrls: prescription.photoUrls || [], // Ensure photoUrls is always present
     createdAt: Timestamp.now(),
   });
   return docRef.id;

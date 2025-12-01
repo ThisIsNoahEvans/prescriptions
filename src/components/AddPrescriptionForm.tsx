@@ -1,11 +1,14 @@
 import { useState, useEffect, FormEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { Timestamp } from 'firebase/firestore';
 import { addPrescription } from '../services/prescriptionService';
 import { uploadPrescriptionPhoto } from '../services/storageService';
 import { formatDateYYYYMMDD } from '../utils/dateUtils';
 import { Prescription } from '../types';
 import { PhotoUpload } from './PhotoUpload';
+import { CategorySelector } from './CategorySelector';
 import { lockBodyScroll, unlockBodyScroll } from '../utils/scrollLock';
+import { getUserSettings } from '../services/userSettingsService';
 
 interface AddPrescriptionFormProps {
   userId: string;
@@ -27,11 +30,29 @@ export function AddPrescriptionForm({
   const [dailyDose, setDailyDose] = useState('1');
   const [startDate, setStartDate] = useState(formatDateYYYYMMDD(new Date()));
   const [startSupply, setStartSupply] = useState('0');
+  const [categoryId, setCategoryId] = useState<string | undefined>(undefined);
+  const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedPhotos, setSelectedPhotos] = useState<File[]>([]);
   const [photoUploadResetKey, setPhotoUploadResetKey] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
-  const [isClosing, setIsClosing] = useState(false);
+  const [emailThresholds, setEmailThresholds] = useState<number[]>([]);
+  const [thresholdInput, setThresholdInput] = useState('');
+  const [reorderBufferDays, setReorderBufferDays] = useState('10');
+
+  // Load default thresholds when form opens
+  useEffect(() => {
+    const loadDefaultThresholds = async () => {
+      try {
+        const settings = await getUserSettings(userId);
+        setEmailThresholds(settings.defaultEmailThresholds || [10]);
+      } catch (error) {
+        console.error('Error loading default thresholds:', error);
+        setEmailThresholds([10]); // Fallback to default
+      }
+    };
+    loadDefaultThresholds();
+  }, [userId]);
 
   // Lock body scroll when form is open
   useEffect(() => {
@@ -50,7 +71,6 @@ export function AddPrescriptionForm({
   }, []);
 
   const handleClose = () => {
-    setIsClosing(true);
     setIsVisible(false);
     // Restore body scroll immediately when closing starts
     unlockBodyScroll();
@@ -100,6 +120,10 @@ export function AddPrescriptionForm({
           dailyDose: dailyDoseNum,
           startDate: Timestamp.fromDate(startDateObj),
           startSupply: startSupplyNum,
+          ...(categoryId && { categoryId }),
+          ...(notes.trim() && { notes: notes.trim() }),
+          ...(emailThresholds.length > 0 && { emailThresholds }),
+          ...(reorderBufferDays && !isNaN(Number(reorderBufferDays)) && Number(reorderBufferDays) > 0 && { reorderBufferDays: Number(reorderBufferDays) }),
         };
 
         const prescriptionId = await addPrescription(userId, prescriptionData);
@@ -124,6 +148,10 @@ export function AddPrescriptionForm({
           dailyDose: dailyDoseNum,
           startDate: Timestamp.fromDate(startDateObj),
           startSupply: startSupplyNum,
+          ...(categoryId && { categoryId }),
+          ...(notes.trim() && { notes: notes.trim() }),
+          ...(emailThresholds.length > 0 && { emailThresholds }),
+          ...(reorderBufferDays && !isNaN(Number(reorderBufferDays)) && Number(reorderBufferDays) > 0 && { reorderBufferDays: Number(reorderBufferDays) }),
         });
       }
 
@@ -133,8 +161,13 @@ export function AddPrescriptionForm({
       setDailyDose('1');
       setStartDate(formatDateYYYYMMDD(new Date()));
       setStartSupply('0');
+      setCategoryId(undefined);
+      setNotes('');
       setSelectedPhotos([]);
       setPhotoUploadResetKey((prev) => prev + 1); // Force PhotoUpload to reset
+      // Reset thresholds to default (will be reloaded on next open)
+      setEmailThresholds([]);
+      setReorderBufferDays('10');
       
       onSuccess(`${name} added successfully!`);
       // Close with animation
@@ -148,18 +181,26 @@ export function AddPrescriptionForm({
     }
   };
 
-  return (
+  // Ensure document.body exists before using createPortal
+  if (typeof document === 'undefined' || !document.body) {
+    return null;
+  }
+
+  return createPortal(
     <div 
       className={`fixed inset-0 z-50 bg-gray-100 dark:bg-gray-900 overflow-y-auto transition-opacity duration-300 ${
         isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
       }`}
     >
       <div 
-        className={`min-h-full bg-white dark:bg-gray-800 shadow-xl transition-transform duration-300 ease-out ${
+        className={`min-h-full bg-white dark:bg-gray-800 shadow-xl transition-transform duration-300 ease-out w-full overflow-x-hidden ${
           isVisible ? 'translate-y-0' : 'translate-y-4'
         }`}
       >
-        <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between z-10 shadow-sm">
+        <div 
+          className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 pb-3 sm:px-6 sm:pb-4 flex items-center justify-between z-10 shadow-sm"
+          style={{ paddingTop: `calc(env(safe-area-inset-top, 0px) + 0.75rem)` }}
+        >
           <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white">
             Add New Prescription
           </h2>
@@ -185,9 +226,9 @@ export function AddPrescriptionForm({
           </button>
         </div>
         
-        <div className="max-w-2xl mx-auto p-4 sm:p-6 md:p-8 pb-8 sm:pb-12">
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-        <div>
+        <div className="max-w-2xl mx-auto p-4 sm:p-6 md:p-8 pb-8 sm:pb-12 w-full overflow-x-hidden">
+      <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 w-full min-w-0">
+        <div className="min-w-0">
           <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Medication Name
           </label>
@@ -202,7 +243,7 @@ export function AddPrescriptionForm({
           />
         </div>
 
-        <div>
+        <div className="min-w-0">
           <label htmlFor="pack-size" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Standard Pack Size
           </label>
@@ -218,7 +259,7 @@ export function AddPrescriptionForm({
           />
         </div>
 
-        <div>
+        <div className="min-w-0">
           <label htmlFor="daily-dose" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Daily Dose (Tablets)
           </label>
@@ -235,7 +276,7 @@ export function AddPrescriptionForm({
           />
         </div>
 
-        <div>
+        <div className="min-w-0">
           <label htmlFor="start-date" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Tracking Start Date
           </label>
@@ -246,10 +287,11 @@ export function AddPrescriptionForm({
             onChange={(e) => setStartDate(e.target.value)}
             required
             className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+            style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}
           />
         </div>
 
-        <div>
+        <div className="min-w-0">
           <label htmlFor="start-supply" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Supply on Start Date
           </label>
@@ -263,6 +305,113 @@ export function AddPrescriptionForm({
             className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
             placeholder="How many tablets you have now"
           />
+        </div>
+
+        <div className="md:col-span-2">
+          <CategorySelector
+            userId={userId}
+            selectedCategoryId={categoryId}
+            onCategoryChange={setCategoryId}
+            onError={onError}
+            onSuccess={onSuccess}
+          />
+        </div>
+
+        <div className="md:col-span-2">
+          <label htmlFor="notes" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Notes (Optional)
+          </label>
+          <textarea
+            id="notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={4}
+            className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white resize-y"
+            placeholder="Add any notes about this prescription..."
+          />
+        </div>
+
+        <div className="md:col-span-2">
+          <label htmlFor="reorder-buffer-days" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Reorder Buffer Days
+          </label>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+            Number of days before run out date to reorder (based on delivery time). For example: 10 for 10-day delivery, 1 for next-day delivery.
+          </p>
+          <input
+            type="number"
+            id="reorder-buffer-days"
+            min="1"
+            value={reorderBufferDays}
+            onChange={(e) => setReorderBufferDays(e.target.value)}
+            className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+            placeholder="10"
+          />
+        </div>
+
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Email Reminder Thresholds (Optional)
+          </label>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+            Days before run out date to receive email reminders. Leave empty to use default settings. Separate from reorder date.
+          </p>
+          <div className="flex gap-2 mb-2">
+            <input
+              type="number"
+              min="1"
+              value={thresholdInput}
+              onChange={(e) => setThresholdInput(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  const value = parseInt(thresholdInput.trim());
+                  if (!isNaN(value) && value > 0 && !emailThresholds.includes(value)) {
+                    setEmailThresholds([...emailThresholds, value].sort((a, b) => b - a));
+                    setThresholdInput('');
+                  }
+                }
+              }}
+              placeholder="Days (e.g., 10)"
+              className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const value = parseInt(thresholdInput.trim());
+                if (!isNaN(value) && value > 0 && !emailThresholds.includes(value)) {
+                  setEmailThresholds([...emailThresholds, value].sort((a, b) => b - a));
+                  setThresholdInput('');
+                }
+              }}
+              disabled={!thresholdInput.trim() || isNaN(parseInt(thresholdInput.trim()))}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Add
+            </button>
+          </div>
+          {emailThresholds.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {emailThresholds.map((threshold) => (
+                <div
+                  key={threshold}
+                  className="flex items-center gap-2 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded-lg"
+                >
+                  <span className="text-sm font-medium">{threshold} days</span>
+                  <button
+                    type="button"
+                    onClick={() => setEmailThresholds(emailThresholds.filter(t => t !== threshold))}
+                    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200"
+                    aria-label={`Remove ${threshold} days threshold`}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="md:col-span-2">
@@ -294,7 +443,8 @@ export function AddPrescriptionForm({
       </form>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

@@ -1,4 +1,5 @@
 import { useState, FormEvent } from 'react';
+import { Modal } from './Modal';
 import { User } from 'firebase/auth';
 import {
   reauthenticateWithPassword,
@@ -50,11 +51,12 @@ export function ReauthenticateModal({
       onSuccess();
       setPassword('');
       onClose();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error re-authenticating:', error);
-      if (error.code === 'auth/wrong-password') {
+      const firebaseError = error as { code?: string };
+      if (firebaseError.code === 'auth/wrong-password') {
         onError('Incorrect password. Please try again.');
-      } else if (error.code === 'auth/invalid-credential') {
+      } else if (firebaseError.code === 'auth/invalid-credential') {
         onError('Invalid password. Please try again.');
       } else {
         onError('Error re-authenticating. Please try again.');
@@ -70,7 +72,7 @@ export function ReauthenticateModal({
       await reauthenticateWithGoogle(user);
       onSuccess();
       onClose();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error re-authenticating with Google:', error);
       onError('Error re-authenticating with Google. Please try again.');
     } finally {
@@ -78,25 +80,8 @@ export function ReauthenticateModal({
     }
   };
 
-  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget && !isReauthenticating && !isReauthenticatingGoogle) {
-      onClose();
-    }
-  };
-
   return (
-    <div
-      className={`modal fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-60 transition-opacity duration-250 ${
-        isOpen ? 'visible opacity-100' : 'invisible opacity-0'
-      }`}
-      onClick={handleBackdropClick}
-    >
-      <div
-        className={`modal-content bg-white dark:bg-gray-800 w-full max-w-md p-8 rounded-2xl shadow-2xl transition-transform duration-250 ${
-          isOpen ? 'scale-100' : 'scale-95'
-        }`}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Modal isOpen={isOpen} onClose={onClose} maxWidth="md" contentClassName="p-8">
         <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
           Re-authentication Required
         </h2>
@@ -196,8 +181,7 @@ export function ReauthenticateModal({
             </button>
           </div>
         )}
-      </div>
-    </div>
+    </Modal>
   );
 }
 

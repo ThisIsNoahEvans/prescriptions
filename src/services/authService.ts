@@ -18,6 +18,10 @@ import {
   getMultiFactorResolver,
   MultiFactorResolver,
   MultiFactorError,
+  linkWithPopup,
+  linkWithCredential,
+  unlink,
+  deleteUser,
 } from 'firebase/auth';
 import { getFirebaseAuth } from '../firebase/config';
 
@@ -197,5 +201,42 @@ export function onAuthStateChange(
 ): () => void {
   const auth = getFirebaseAuth();
   return onAuthStateChanged(auth, callback);
+}
+
+/**
+ * Link Google provider to current user account
+ */
+export async function linkGoogleProvider(user: User): Promise<User> {
+  const provider = new GoogleAuthProvider();
+  const userCredential = await linkWithPopup(user, provider);
+  return userCredential.user;
+}
+
+/**
+ * Link email/password provider to current user account
+ */
+export async function linkEmailPasswordProvider(
+  user: User,
+  email: string,
+  password: string
+): Promise<User> {
+  const credential = EmailAuthProvider.credential(email, password);
+  const userCredential = await linkWithCredential(user, credential);
+  return userCredential.user;
+}
+
+/**
+ * Unlink a provider from the current user account
+ */
+export async function unlinkProvider(user: User, providerId: string): Promise<User> {
+  return await unlink(user, providerId);
+}
+
+/**
+ * Delete the current user account
+ * Note: This will also delete all user data from Firestore
+ */
+export async function deleteAccount(user: User): Promise<void> {
+  await deleteUser(user);
 }
 

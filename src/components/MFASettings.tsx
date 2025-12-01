@@ -377,9 +377,16 @@ export function MFASettings({ user, isOpen, onClose, onError, onSuccess }: MFASe
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-60 transition-opacity duration-300 ${
+      className={`z-50 flex items-center justify-center p-4 bg-black bg-opacity-60 transition-opacity duration-300 ${
         isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
       }`}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+      }}
       onClick={(e) => {
         if (e.target === e.currentTarget && isVisible) {
           handleClose();
