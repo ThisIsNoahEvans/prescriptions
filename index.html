@@ -21,7 +21,9 @@
           document.documentElement.classList.add('dark');
         }
         // Set body background immediately to prevent flash
-        document.body.style.backgroundColor = isDark ? '#111827' : '#f3f4f6';
+        if (document.body) {
+          document.body.style.backgroundColor = isDark ? '#111827' : '#f3f4f6';
+        }
         // Set theme color based on mode
         const themeColorMeta = document.querySelector('meta[name="theme-color"]');
         if (themeColorMeta) {
@@ -34,7 +36,7 @@
         }
       })();
     </script>
-    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Prescriptions" />
     <link rel="apple-touch-icon" href="/logo_192x192.png" />
