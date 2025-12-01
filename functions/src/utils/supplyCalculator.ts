@@ -14,6 +14,7 @@ export interface PrescriptionData {
     quantity: number;
   }>;
   emailThresholds?: number[]; // Array of days before run out date
+  reorderBufferDays?: number; // Number of days before run out date to reorder (based on delivery time)
 }
 
 export interface SupplyInfo {
@@ -39,8 +40,11 @@ export function calculateSupplyInfo(prescription: PrescriptionData): SupplyInfo 
     });
 
     // 2. Calculate total consumed based on days passed
+    // Always include today's dose in the calculation for consistency
+    // This ensures the supply shown is "after today" regardless of time of day
     const daysPassed = dateDiffInDays(today, startDate);
-    const totalConsumed = daysPassed < 0 ? 0 : daysPassed * dailyDose;
+    const daysIncludingToday = daysPassed < 0 ? 1 : daysPassed + 1; // Add 1 to include today
+    const totalConsumed = daysIncludingToday * dailyDose;
 
     // 3. Calculate current supply
     const currentSupply = totalAdded - totalConsumed;
@@ -48,7 +52,12 @@ export function calculateSupplyInfo(prescription: PrescriptionData): SupplyInfo 
     // 4. Calculate future dates
     const daysRemaining = dailyDose > 0 ? Math.floor(currentSupply / dailyDose) : 9999;
     const runOutDate = addDays(today, daysRemaining);
-    const reorderDate = addDays(runOutDate, -REORDER_BUFFER_DAYS);
+    
+    // Use prescription-specific reorder buffer (delivery time) if set, otherwise use default
+    // This is separate from email notification thresholds
+    const reorderBufferDays = prescription.reorderBufferDays ?? REORDER_BUFFER_DAYS;
+    
+    const reorderDate = addDays(runOutDate, -reorderBufferDays);
 
     return {
       currentSupply: Math.max(0, currentSupply),

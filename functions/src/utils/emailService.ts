@@ -217,7 +217,7 @@ export function generateReorderEmailHTML(
             <span class="info-label">Current Supply: </span>
             <span class="info-value">~${Math.round(
               currentSupply
-            )} tablets</span>
+            )} tablets left after today</span>
           </div>
           
           <div class="info-row">
@@ -303,7 +303,7 @@ export function generateCombinedReorderEmailHTML(
             <span class="info-label">Current Supply: </span>
             <span class="info-value"> ~${Math.round(
               item.currentSupply
-            )} tablets</span>
+            )} tablets left after today</span>
           </div>
           
           <div class="info-row">
@@ -400,7 +400,7 @@ export function generateRunOutDayReminderHTML(
           
           <div class="info-row">
             <span class="info-label">Current Supply:</span>
-            <span class="info-value">~${Math.round(item.currentSupply)} tablets</span>
+            <span class="info-value">~${Math.round(item.currentSupply)} tablets left after today</span>
           </div>
         </div>
       `;

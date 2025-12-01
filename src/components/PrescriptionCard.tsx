@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Prescription, SupplyInfo, Category } from '../types';
-import { formatDisplayDate, dateDiffInDays, normalizeDate } from '../utils/dateUtils';
+import { formatDisplayDate, normalizeDate } from '../utils/dateUtils';
 import { PhotoGalleryModal } from './PhotoGalleryModal';
 import { NotesModal } from './NotesModal';
 
@@ -24,7 +24,55 @@ export function PrescriptionCard({
   const [isPhotoGalleryOpen, setIsPhotoGalleryOpen] = useState(false);
   const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
   const today = normalizeDate(new Date());
-  const reorderDiff = dateDiffInDays(supplyInfo.reorderDate, today);
+  
+  // Debug logging for reorder date
+  console.log(`[PrescriptionCard] ${prescription.name} - Reorder date processing:`, {
+    supplyInfoReorderDate: supplyInfo.reorderDate,
+    supplyInfoReorderDateType: typeof supplyInfo.reorderDate,
+    supplyInfoReorderDateInstance: supplyInfo.reorderDate instanceof Date,
+    supplyInfoReorderDateValid: supplyInfo.reorderDate ? !isNaN(supplyInfo.reorderDate.getTime()) : 'N/A',
+    supplyInfoReorderDateString: supplyInfo.reorderDate ? supplyInfo.reorderDate.toString() : 'N/A',
+    supplyInfoReorderDateISO: supplyInfo.reorderDate ? supplyInfo.reorderDate.toISOString() : 'N/A',
+  });
+  
+  // Calculate signed difference (negative if reorder date is in the past)
+  // Ensure reorderDate exists and is valid before normalizing
+  let reorderDate: Date | null = null;
+  if (supplyInfo.reorderDate) {
+    try {
+      const date = supplyInfo.reorderDate instanceof Date 
+        ? supplyInfo.reorderDate 
+        : new Date(supplyInfo.reorderDate);
+      if (!isNaN(date.getTime())) {
+        reorderDate = date;
+        console.log(`[PrescriptionCard] ${prescription.name} - Reorder date parsed successfully:`, date.toISOString());
+      } else {
+        console.warn(`[PrescriptionCard] ${prescription.name} - Reorder date is NaN:`, {
+          original: supplyInfo.reorderDate,
+          parsed: date,
+        });
+      }
+    } catch (e) {
+      console.error(`[PrescriptionCard] ${prescription.name} - Error parsing reorder date:`, e, supplyInfo.reorderDate);
+    }
+  } else {
+    console.warn(`[PrescriptionCard] ${prescription.name} - No reorder date in supplyInfo:`, {
+      supplyInfo,
+      hasReorderDate: 'reorderDate' in supplyInfo,
+    });
+  }
+  
+  const normalizedReorderDate = reorderDate ? normalizeDate(reorderDate) : today;
+  const reorderDiff = reorderDate 
+    ? Math.floor((normalizedReorderDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+    : 0;
+  
+  console.log(`[PrescriptionCard] ${prescription.name} - Final reorder date state:`, {
+    reorderDate: reorderDate ? reorderDate.toISOString() : null,
+    normalizedReorderDate: normalizedReorderDate.toISOString(),
+    reorderDiff,
+    willDisplay: reorderDate !== null,
+  });
   const hasPhotos = prescription.photoUrls && prescription.photoUrls.length > 0;
   const hasNotes = prescription.notes && prescription.notes.trim().length > 0;
   const category = prescription.categoryId
@@ -38,20 +86,20 @@ export function PrescriptionCard({
     : prescription.notes;
 
   // Determine re-order date color and label
-  let reorderColor = 'text-gray-700';
+  let reorderColor = 'text-gray-700 dark:text-gray-300';
   let reorderLabel = '';
 
   if (reorderDiff < 0) {
     // Overdue
-    reorderColor = 'text-red-600 font-bold';
+    reorderColor = 'text-red-600 dark:text-red-400 font-bold';
     reorderLabel = `(Overdue by ${Math.abs(reorderDiff)} days)`;
   } else if (reorderDiff === 0) {
     // Today
-    reorderColor = 'text-red-600 font-bold text-lg';
+    reorderColor = 'text-red-600 dark:text-red-400 font-bold text-lg';
     reorderLabel = '(Order Today!)';
   } else if (reorderDiff <= 7) {
     // Within 7 days
-    reorderColor = 'text-yellow-600 font-bold';
+    reorderColor = 'text-yellow-600 dark:text-yellow-400 font-bold';
     reorderLabel = `(In ${reorderDiff} days)`;
   }
 
@@ -101,7 +149,7 @@ export function PrescriptionCard({
             )}
           </div>
           <span className="text-lg font-semibold text-blue-700 dark:text-blue-400 mt-2 md:mt-0 flex-shrink-0 whitespace-nowrap">
-            ~{Math.round(supplyInfo.currentSupply)} tablets left
+            ~{Math.round(supplyInfo.currentSupply)} tablets left after today
           </span>
         </div>
 
@@ -143,14 +191,16 @@ export function PrescriptionCard({
           <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
             <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Re-order Date</p>
             <p className={`text-xl ${reorderColor} break-words`}>
-              {formatDisplayDate(supplyInfo.reorderDate)}{' '}
+              {reorderDate 
+                ? formatDisplayDate(reorderDate) 
+                : 'Calculating...'}{' '}
               <span className={`text-sm ${reorderColor}`}>{reorderLabel}</span>
             </p>
           </div>
           <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
             <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Est. Run Out Date</p>
             <p className="text-xl text-gray-700 dark:text-gray-300 break-words">
-              {formatDisplayDate(supplyInfo.runOutDate)} ({supplyInfo.daysRemaining} days left)
+              {formatDisplayDate(supplyInfo.runOutDate)} ({supplyInfo.daysRemaining} days left after today)
             </p>
           </div>
         </div>
@@ -160,7 +210,7 @@ export function PrescriptionCard({
             onClick={() => onLogDelivery(prescription)}
             className="log-delivery-btn flex-1 bg-green-600 text-white font-bold py-3 px-4 sm:px-6 rounded-lg hover:bg-green-700 shadow-md transition-all duration-200 text-sm sm:text-base whitespace-nowrap min-w-0 overflow-hidden text-ellipsis"
           >
-            Log New Delivery
+            Log Delivery
           </button>
           <button
             onClick={() => onViewLogs(prescription)}

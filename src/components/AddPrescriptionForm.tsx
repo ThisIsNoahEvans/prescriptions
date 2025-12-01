@@ -38,6 +38,7 @@ export function AddPrescriptionForm({
   const [isVisible, setIsVisible] = useState(false);
   const [emailThresholds, setEmailThresholds] = useState<number[]>([]);
   const [thresholdInput, setThresholdInput] = useState('');
+  const [reorderBufferDays, setReorderBufferDays] = useState('10');
 
   // Load default thresholds when form opens
   useEffect(() => {
@@ -122,6 +123,7 @@ export function AddPrescriptionForm({
           ...(categoryId && { categoryId }),
           ...(notes.trim() && { notes: notes.trim() }),
           ...(emailThresholds.length > 0 && { emailThresholds }),
+          ...(reorderBufferDays && !isNaN(Number(reorderBufferDays)) && Number(reorderBufferDays) > 0 && { reorderBufferDays: Number(reorderBufferDays) }),
         };
 
         const prescriptionId = await addPrescription(userId, prescriptionData);
@@ -149,6 +151,7 @@ export function AddPrescriptionForm({
           ...(categoryId && { categoryId }),
           ...(notes.trim() && { notes: notes.trim() }),
           ...(emailThresholds.length > 0 && { emailThresholds }),
+          ...(reorderBufferDays && !isNaN(Number(reorderBufferDays)) && Number(reorderBufferDays) > 0 && { reorderBufferDays: Number(reorderBufferDays) }),
         });
       }
 
@@ -164,6 +167,7 @@ export function AddPrescriptionForm({
       setPhotoUploadResetKey((prev) => prev + 1); // Force PhotoUpload to reset
       // Reset thresholds to default (will be reloaded on next open)
       setEmailThresholds([]);
+      setReorderBufferDays('10');
       
       onSuccess(`${name} added successfully!`);
       // Close with animation
@@ -328,11 +332,29 @@ export function AddPrescriptionForm({
         </div>
 
         <div className="md:col-span-2">
+          <label htmlFor="reorder-buffer-days" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Reorder Buffer Days
+          </label>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+            Number of days before run out date to reorder (based on delivery time). For example: 10 for 10-day delivery, 1 for next-day delivery.
+          </p>
+          <input
+            type="number"
+            id="reorder-buffer-days"
+            min="1"
+            value={reorderBufferDays}
+            onChange={(e) => setReorderBufferDays(e.target.value)}
+            className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+            placeholder="10"
+          />
+        </div>
+
+        <div className="md:col-span-2">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Email Reminder Thresholds (Optional)
           </label>
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-            Days before run out date to receive email reminders. Leave empty to use default settings.
+            Days before run out date to receive email reminders. Leave empty to use default settings. Separate from reorder date.
           </p>
           <div className="flex gap-2 mb-2">
             <input
