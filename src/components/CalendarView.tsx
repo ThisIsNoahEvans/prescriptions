@@ -111,26 +111,26 @@ export function CalendarView({ prescriptions }: CalendarViewProps) {
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Calendar View</h2>
-        <div className="flex gap-2">
+    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-3 lg:p-4">
+      <div className="flex justify-between items-center mb-3 lg:mb-4">
+        <h2 className="text-lg lg:text-xl font-semibold text-gray-900 dark:text-white">Calendar View</h2>
+        <div className="flex gap-1 lg:gap-2">
           <button
             onClick={goToPreviousMonth}
-            className="px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+            className="px-2 lg:px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-sm lg:text-base"
             aria-label="Previous month"
           >
             ‹
           </button>
           <button
             onClick={goToToday}
-            className="px-4 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+            className="px-3 lg:px-4 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs lg:text-sm"
           >
             Today
           </button>
           <button
             onClick={goToNextMonth}
-            className="px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+            className="px-2 lg:px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-sm lg:text-base"
             aria-label="Next month"
           >
             ›
@@ -138,16 +138,16 @@ export function CalendarView({ prescriptions }: CalendarViewProps) {
         </div>
       </div>
 
-      <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 text-center">
+      <h3 className="text-base lg:text-lg font-bold text-gray-900 dark:text-white mb-2 lg:mb-3 text-center">
         {monthYear}
       </h3>
 
       {/* Day names header */}
-      <div className="grid grid-cols-7 gap-1 mb-2">
+      <div className="grid grid-cols-7 gap-0.5 lg:gap-1 mb-1 lg:mb-2">
         {dayNames.map((day) => (
           <div
             key={day}
-            className="text-center text-sm font-medium text-gray-600 dark:text-gray-400 py-2"
+            className="text-center text-xs lg:text-sm font-medium text-gray-600 dark:text-gray-400 py-1 lg:py-2"
           >
             {day}
           </div>
@@ -155,7 +155,7 @@ export function CalendarView({ prescriptions }: CalendarViewProps) {
       </div>
 
       {/* Calendar grid */}
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-0.5 lg:gap-1">
         {days.map((day, index) => {
           const isToday = isSameDay(day, today);
           const isCurrentMonthDay = isCurrentMonth(day);
@@ -164,14 +164,14 @@ export function CalendarView({ prescriptions }: CalendarViewProps) {
           return (
             <div
               key={index}
-              className={`min-h-[80px] p-1 border border-gray-200 dark:border-gray-700 rounded ${
+              className={`min-h-[50px] lg:min-h-[60px] xl:min-h-[70px] p-0.5 lg:p-1 border border-gray-200 dark:border-gray-700 rounded ${
                 isCurrentMonthDay
                   ? 'bg-white dark:bg-gray-800'
                   : 'bg-gray-50 dark:bg-gray-900 opacity-50'
-              } ${isToday ? 'ring-2 ring-blue-500 dark:ring-blue-400' : ''}`}
+              } ${isToday ? 'ring-1 lg:ring-2 ring-blue-500 dark:ring-blue-400' : ''}`}
             >
               <div
-                className={`text-sm font-medium mb-1 ${
+                className={`text-xs lg:text-sm font-medium mb-0.5 lg:mb-1 ${
                   isToday
                     ? 'text-blue-600 dark:text-blue-400'
                     : isCurrentMonthDay
@@ -181,20 +181,20 @@ export function CalendarView({ prescriptions }: CalendarViewProps) {
               >
                 {day.getDate()}
               </div>
-              <div className="space-y-1">
+              <div className="space-y-0.5 lg:space-y-1">
                 {dayEvents.slice(0, 3).map((event, eventIndex) => (
                   <div
                     key={eventIndex}
                     className={`${getEventTypeColor(
                       event.type
-                    )} text-white text-xs px-1 py-0.5 rounded truncate`}
+                    )} text-white text-[10px] lg:text-xs px-0.5 lg:px-1 py-0 lg:py-0.5 rounded truncate`}
                     title={event.label}
                   >
                     {event.prescription.name.substring(0, 8)}
                   </div>
                 ))}
                 {dayEvents.length > 3 && (
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                  <div className="text-[10px] lg:text-xs text-gray-500 dark:text-gray-400">
                     +{dayEvents.length - 3} more
                   </div>
                 )}
@@ -205,20 +205,20 @@ export function CalendarView({ prescriptions }: CalendarViewProps) {
       </div>
 
       {/* Legend */}
-      <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-        <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Legend</h4>
-        <div className="flex flex-wrap gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-green-500 dark:bg-green-600 rounded"></div>
-            <span className="text-sm text-gray-700 dark:text-gray-300">Delivery</span>
+      <div className="mt-3 lg:mt-4 pt-2 lg:pt-3 border-t border-gray-200 dark:border-gray-700">
+        <h4 className="text-xs lg:text-sm font-semibold text-gray-900 dark:text-white mb-2 lg:mb-3">Legend</h4>
+        <div className="flex flex-wrap gap-2 lg:gap-4">
+          <div className="flex items-center gap-1.5 lg:gap-2">
+            <div className="w-3 h-3 lg:w-4 lg:h-4 bg-green-500 dark:bg-green-600 rounded"></div>
+            <span className="text-xs lg:text-sm text-gray-700 dark:text-gray-300">Delivery</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-yellow-500 dark:bg-yellow-600 rounded"></div>
-            <span className="text-sm text-gray-700 dark:text-gray-300">Reorder Date</span>
+          <div className="flex items-center gap-1.5 lg:gap-2">
+            <div className="w-3 h-3 lg:w-4 lg:h-4 bg-yellow-500 dark:bg-yellow-600 rounded"></div>
+            <span className="text-xs lg:text-sm text-gray-700 dark:text-gray-300">Reorder Date</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-red-500 dark:bg-red-600 rounded"></div>
-            <span className="text-sm text-gray-700 dark:text-gray-300">Run Out Date</span>
+          <div className="flex items-center gap-1.5 lg:gap-2">
+            <div className="w-3 h-3 lg:w-4 lg:h-4 bg-red-500 dark:bg-red-600 rounded"></div>
+            <span className="text-xs lg:text-sm text-gray-700 dark:text-gray-300">Run Out Date</span>
           </div>
         </div>
       </div>

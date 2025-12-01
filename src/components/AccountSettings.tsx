@@ -68,6 +68,9 @@ export function AccountSettings({
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [thresholdInput, setThresholdInput] = useState('');
 
+  // Force update state
+  const [isUpdating, setIsUpdating] = useState(false);
+
 
   // Get provider info
   const isGoogleUser = user.providerData.some((provider) => provider.providerId === 'google.com');
@@ -377,6 +380,31 @@ export function AccountSettings({
       onError('Error saving email thresholds. Please try again.');
     } finally {
       setIsSavingSettings(false);
+    }
+  };
+
+  // Force update handler
+  const handleForceUpdate = async () => {
+    setIsUpdating(true);
+    try {
+      // Unregister all service workers
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map(registration => registration.unregister()));
+      }
+
+      // Clear all caches
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map(cacheName => caches.delete(cacheName)));
+      }
+
+      // Force reload the page
+      window.location.reload();
+    } catch (error) {
+      console.error('Error forcing update:', error);
+      onError('Error forcing update. Please try again.');
+      setIsUpdating(false);
     }
   };
 
@@ -783,6 +811,21 @@ export function AccountSettings({
                   </button>
                 </div>
               )}
+            </div>
+
+            {/* PWA Force Update */}
+            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <h3 className="text-lg font-semibold text-blue-800 dark:text-blue-200 mb-2">PWA Update</h3>
+              <p className="text-sm text-blue-700 dark:text-blue-300 mb-4">
+                Force reload the app to get the latest version. This will clear the cache and reload the page.
+              </p>
+              <button
+                onClick={handleForceUpdate}
+                disabled={isUpdating}
+                className="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isUpdating ? 'Updating...' : 'Force Reload App'}
+              </button>
             </div>
 
             {/* Delete Account */}

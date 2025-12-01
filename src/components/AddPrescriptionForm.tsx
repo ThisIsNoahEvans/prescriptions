@@ -189,11 +189,14 @@ export function AddPrescriptionForm({
       }`}
     >
       <div 
-        className={`min-h-full bg-white dark:bg-gray-800 shadow-xl transition-transform duration-300 ease-out ${
+        className={`min-h-full bg-white dark:bg-gray-800 shadow-xl transition-transform duration-300 ease-out w-full overflow-x-hidden ${
           isVisible ? 'translate-y-0' : 'translate-y-4'
         }`}
       >
-        <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between z-10 shadow-sm">
+        <div 
+          className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 pb-3 sm:px-6 sm:pb-4 flex items-center justify-between z-10 shadow-sm"
+          style={{ paddingTop: `calc(env(safe-area-inset-top, 0px) + 0.75rem)` }}
+        >
           <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white">
             Add New Prescription
           </h2>
@@ -219,9 +222,9 @@ export function AddPrescriptionForm({
           </button>
         </div>
         
-        <div className="max-w-2xl mx-auto p-4 sm:p-6 md:p-8 pb-8 sm:pb-12">
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-        <div>
+        <div className="max-w-2xl mx-auto p-4 sm:p-6 md:p-8 pb-8 sm:pb-12 w-full overflow-x-hidden">
+      <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 w-full min-w-0">
+        <div className="min-w-0">
           <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Medication Name
           </label>
@@ -236,7 +239,7 @@ export function AddPrescriptionForm({
           />
         </div>
 
-        <div>
+        <div className="min-w-0">
           <label htmlFor="pack-size" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Standard Pack Size
           </label>
@@ -252,7 +255,7 @@ export function AddPrescriptionForm({
           />
         </div>
 
-        <div>
+        <div className="min-w-0">
           <label htmlFor="daily-dose" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Daily Dose (Tablets)
           </label>
@@ -269,7 +272,7 @@ export function AddPrescriptionForm({
           />
         </div>
 
-        <div>
+        <div className="min-w-0">
           <label htmlFor="start-date" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Tracking Start Date
           </label>
@@ -280,10 +283,11 @@ export function AddPrescriptionForm({
             onChange={(e) => setStartDate(e.target.value)}
             required
             className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+            style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}
           />
         </div>
 
-        <div>
+        <div className="min-w-0">
           <label htmlFor="start-supply" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Supply on Start Date
           </label>
