@@ -174,11 +174,8 @@ function App() {
           <div className="flex flex-row justify-between items-start gap-4 mb-4">
             <div className="flex-1 min-w-0">
               <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-blue-800 dark:text-blue-400 mb-1 sm:mb-2">
-                My Prescription Tracker
+                Prescription Tracker
               </h1>
-              <p className="text-sm sm:text-base md:text-lg text-gray-600 dark:text-gray-400">
-                Never miss a re-order date again.
-              </p>
             </div>
             {user && (
               <div className="flex-shrink-0">

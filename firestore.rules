@@ -30,7 +30,8 @@ service cloud.firestore {
         && request.resource.data.photoUrls.size() <= 5
         && (!('categoryId' in request.resource.data) || request.resource.data.categoryId is string)
         && (!('notes' in request.resource.data) || request.resource.data.notes is string)
-        && (!('emailThresholds' in request.resource.data) || (request.resource.data.emailThresholds is list && request.resource.data.emailThresholds.size() <= 10 && request.resource.data.emailThresholds.size() > 0));
+        && (!('emailThresholds' in request.resource.data) || (request.resource.data.emailThresholds is list && request.resource.data.emailThresholds.size() <= 10 && request.resource.data.emailThresholds.size() > 0))
+        && (!('reorderBufferDays' in request.resource.data) || (request.resource.data.reorderBufferDays is int && request.resource.data.reorderBufferDays > 0));
       
       // Allow update if user is authenticated and owns the prescription
       // Allow updating the supplyLog, photoUrls, categoryId, and notes fields
@@ -51,6 +52,8 @@ service cloud.firestore {
             && (!('notes' in request.resource.data) || request.resource.data.notes is string))
           || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['emailThresholds'])
             && (!('emailThresholds' in request.resource.data) || (request.resource.data.emailThresholds is list && request.resource.data.emailThresholds.size() <= 10 && request.resource.data.emailThresholds.size() > 0)))
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reorderBufferDays'])
+            && (!('reorderBufferDays' in request.resource.data) || (request.resource.data.reorderBufferDays is int && request.resource.data.reorderBufferDays > 0)))
         );
       
       // Allow delete if user is authenticated and owns the prescription
